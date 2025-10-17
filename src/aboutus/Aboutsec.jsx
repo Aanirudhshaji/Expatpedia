@@ -1,6 +1,7 @@
 import React from "react";
 import Mission from "./mission";
 import aboutImage from "../assets/ctabg.jpg";
+import Blog from "../components/blog";
 
 const AboutSection = () => {
   return (
@@ -41,6 +42,7 @@ const AboutSection = () => {
 
       {/* ✅ Mission Section OUTSIDE the padded section */}
       <Mission />
+      <Blog />
     </>
   );
 };

@@ -24,23 +24,23 @@ const Navbar = () => {
 
         {/* Glassmorphic Nav Container */}
         <div className="ml-auto flex items-center bg-black/30 border border-white/40 backdrop-blur-md rounded-full px-6 py-2 space-x-12 shadow-md">
-          <a href="/About" className="text-white text-sm hover:opacity-80">
+          <Link to="/about" className="text-white text-sm hover:opacity-80">
             About
-          </a>
-          <a href="#community" className="text-white text-sm hover:opacity-80">
+          </Link>
+          <Link to="/members" className="text-white text-sm hover:opacity-80">
             Community
-          </a>
-          <a href="#blog" className="text-white text-sm hover:opacity-80">
+          </Link>
+          <Link to="#blog" className="text-white text-sm hover:opacity-80">
             Blog
-          </a>
+          </Link>
 
           {/* CTA Button */}
-          <a
-            href="#contact"
+          <Link
+            to="#contact"
             className="bg-[#0a66c2] text-white text-sm font-medium px-5 py-2 rounded-xl hover:bg-[#0080ff] transition"
           >
             Contact Us
-          </a>
+          </Link>
         </div>
       </div>
 
