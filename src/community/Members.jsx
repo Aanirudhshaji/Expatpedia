@@ -6,7 +6,7 @@ const Members = () => {
 
   useEffect(() => {
     axios
-      .get("https://your-backend-domain.com/api/members/")
+      .get("http://192.168.1.27:8000/api/acounts/")
       .then((res) => setMembers(res.data))
       .catch((err) => console.error("Error fetching members:", err));
   }, []);

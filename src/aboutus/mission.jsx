@@ -5,7 +5,7 @@ const MissionSection = () => {
     <section className="w-full bg-[#0a66c2] text-white py-20 px-6 md:px-10 lg:px-20 text-center">
       {/* Section Header */}
       <p className="uppercase text-sm tracking-widest text-white/80 mb-4">
-        Our Mission
+        Our Vision
       </p>
 
       {/* Main Heading */}
