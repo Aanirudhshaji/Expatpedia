@@ -34,8 +34,8 @@ const Footer = () => {
           <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm text-gray-400">
             <a href="/" className="hover:text-white transition">Home</a>
             <a href="/about" className="hover:text-white transition">About Us</a>
-            <a href="/terms" className="hover:text-white transition">Terms & Conditions</a>
-            <a href="/register" className="hover:text-white transition">Register</a>
+            <a href="/members" className="hover:text-white transition">Community</a>
+            <a href="/register" className="hover:text-white transition">Contact</a>
           </div>
 
           {/* Social Icons */}
@@ -60,7 +60,7 @@ const Footer = () => {
           <p>© 2025 The Expatpedia. All rights reserved</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a href="/terms" className="hover:text-white transition">Terms of Service</a>
-            <a href="#" className="hover:text-white transition">Privacy Policy</a>
+            <a href="/policy" className="hover:text-white transition">Privacy Policy</a>
           </div>
         </div>
       </div>

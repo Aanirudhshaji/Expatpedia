@@ -17,6 +17,8 @@ import Blog from "./components/blog";
 // Pages
 import Aboutsec from "./aboutus/Aboutsec";
 import Members from "./community/Members";
+import Terms from "./Terms&Conditions/terms";
+import Policy from "./Terms&Conditions/policy";
 
 function App() {
   return (
@@ -59,6 +61,24 @@ function App() {
             element={
               <>
                 <Members />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <>
+                <Terms />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/policy"
+            element={
+              <>
+                <Policy />
                 <Footer />
               </>
             }
