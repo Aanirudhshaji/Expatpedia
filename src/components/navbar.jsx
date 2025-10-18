@@ -24,6 +24,9 @@ const Navbar = () => {
 
         {/* Glassmorphic Nav Container */}
         <div className="ml-auto flex items-center bg-black/30 border border-white/40 backdrop-blur-md rounded-full px-6 py-2 space-x-12 shadow-md">
+          <Link to="/" className="text-white text-sm hover:opacity-80">
+            Home
+          </Link>
           <Link to="/about" className="text-white text-sm hover:opacity-80">
             About
           </Link>
@@ -87,15 +90,15 @@ const Navbar = () => {
 
         {/* Menu Links */}
         <nav className="flex flex-col mt-10 space-y-4 px-6 text-4xl sm:text-5xl text-[#2155a5] font-extrabold tracking-tight">
+          <a href="/" className="hover:opacity-70">Home</a>
           <a href="/about" className="hover:opacity-70">About</a>
-          <a href="#work" className="hover:opacity-70">Work</a>
-          <a href="#news" className="hover:opacity-70">News</a>
-          <a href="#team" className="hover:opacity-70">Team</a>
+          <a href="/members" className="hover:opacity-70">Community</a>
+          <a href="#news" className="hover:opacity-70">Blog</a>
           <a href="#contact" className="hover:opacity-70">Contact</a>
         </nav>
 
         {/* Social Icons */}
-        <div className="absolute bottom-6 left-6 flex space-x-5 text-2xl">
+        <div className="absolute bottom-15 left-6 flex space-x-5 text-2xl">
           <a
             href="https://instagram.com"
             target="_blank"
