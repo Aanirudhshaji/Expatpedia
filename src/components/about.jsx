@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Play, Pause, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // ✅ Added useNavigate
 import aboutVideo from "../assets/about.mp4"; // ✅ replace with your video path
 
 const AboutSection = () => {
@@ -15,6 +16,8 @@ const AboutSection = () => {
     reach: 0,
     vision: 0,
   });
+
+  const navigate = useNavigate(); // ✅ For redirect
 
   const handleVideoToggle = () => {
     if (isPlaying) videoRef.current.pause();
@@ -68,13 +71,11 @@ const AboutSection = () => {
         {/* LEFT SECTION */}
         <div>
           <p className="text-[#0a66c2] text-sm font-semibold tracking-wide text-center md:text-left uppercase mb-2">
-          About
-        </p>
+            About
+          </p>
           <h2 className="text-2xl sm:text-4xl text-center md:text-left lg:text-5xl font-semibold leading-snug text-[#0a66c2] mb-5">
             Celebrating Expatriate{" "}
-            <span className="text-gray-700 font-bold">
-              Success Stories
-            </span>{" "}
+            <span className="text-gray-700 font-bold">Success Stories</span>{" "}
             in Bahrain
           </h2>
 
@@ -158,7 +159,10 @@ const AboutSection = () => {
           </div>
 
           {/* LEARN MORE BUTTON */}
-          <button className="flex items-center gap-2 w-fit px-6 py-3 bg-[#0a66c2] text-white rounded-full hover:bg-[#0080ff] transition">
+          <button
+            onClick={() => navigate("/about")} // ✅ Redirect to /about
+            className="flex items-center gap-2 w-fit px-6 py-3 bg-[#0a66c2] text-white rounded-full hover:bg-[#0080ff] transition"
+          >
             Learn more <ArrowRight size={18} />
           </button>
         </div>

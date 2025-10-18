@@ -20,7 +20,7 @@ const TeamMembers = () => {
 
         if (Array.isArray(data)) {
           setTeamMembers(data);
-        } else if (data && typeof data === "object") {
+        } else if (data && typeof data === "object") {j
           const possibleKeys = ["results", "data", "users", "members"];
           const foundKey = possibleKeys.find((key) => Array.isArray(data[key]));
           if (foundKey) {

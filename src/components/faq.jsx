@@ -38,11 +38,9 @@ const FAQ = () => {
         <p className="text-[#0a66c2] text-sm tracking-wide mb-2">
           FAQs
         </p>
-        <h2 className="text-3xl md:text-4xl font-semibold text-black leading-tight">
-          Common queries about our<br />
-           <span className="text-[#0a66c2] font-bold">
-              Expatpedia
-            </span>
+        <h2 className="text-3xl md:text-4xl font-semibold text-black leading-tight text-center md:text-left">
+          Common queries about our{" "}
+          <span className="text-[#0a66c2] font-bold">Expatpedia</span>
         </h2>
       </div>
 

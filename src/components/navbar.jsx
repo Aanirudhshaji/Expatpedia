@@ -127,21 +127,21 @@ const Navbar = () => {
 
         {/* Menu Links */}
         <nav className="flex flex-col mt-10 space-y-4 px-6 text-4xl sm:text-5xl text-[#2155a5] font-extrabold tracking-tight">
-          <a href="/" className="hover:opacity-70">
+          <Link to="/" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Home
-          </a>
-          <a href="/about" className="hover:opacity-70">
+          </Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             About
-          </a>
-          <a href="/members" className="hover:opacity-70">
+          </Link>
+          <Link to="/members" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Community
-          </a>
-          <a href="#blog" className="hover:opacity-70">
+          </Link>
+          <Link to="#blog" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Blog
-          </a>
-          <a href="#contact" className="hover:opacity-70">
+          </Link>
+          <Link to="#contact" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Contact
-          </a>
+          </Link>
         </nav>
 
         {/* Social Icons */}
