@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { FaLinkedinIn, FaFacebookF, FaInstagram, FaXTwitter } from "react-icons/fa6";
 import logo from "../assets/logo1.png";
 
@@ -21,7 +22,7 @@ const Footer = () => {
           <p className="text-gray-400 md:max-w-md leading-relaxed md:self-start">
             Connect, Inspire & Empower — Explore the stories and journeys of exceptional professionals in the Kingdom of Bahrain.
           </p>
-          <button className="mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition">
+          <button className="md:mr-1.5 mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition">
             Join The Directory →
           </button>
         </div>
@@ -32,10 +33,10 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row md:justify-between md:items-center gap-6">
           {/* Navigation */}
           <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm text-gray-400">
-            <a href="/" className="hover:text-white transition">Home</a>
-            <a href="/about" className="hover:text-white transition">About Us</a>
-            <a href="/members" className="hover:text-white transition">Community</a>
-            <a href="/register" className="hover:text-white transition">Contact</a>
+            <Link to="/" className="hover:text-white transition">Home</Link>
+            <Link to="/about" className="hover:text-white transition">About Us</Link>
+            <Link to="/members" className="hover:text-white transition">Community</Link>
+            <Link to="/register" className="hover:text-white transition">Contact</Link>
           </div>
 
           {/* Social Icons */}
@@ -59,8 +60,8 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto px-6 md:px-10 mt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
           <p>© 2025 The Expatpedia. All rights reserved</p>
           <div className="flex gap-4 mt-2 md:mt-0">
-            <a href="/terms" className="hover:text-white transition">Terms of Service</a>
-            <a href="/policy" className="hover:text-white transition">Privacy Policy</a>
+            <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
+            <Link to="/policy" className="hover:text-white transition">Privacy Policy</Link>
           </div>
         </div>
       </div>

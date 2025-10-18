@@ -136,7 +136,7 @@ const Navbar = () => {
           <a href="/members" className="hover:opacity-70">
             Community
           </a>
-          <a href="#news" className="hover:opacity-70">
+          <a href="#blog" className="hover:opacity-70">
             Blog
           </a>
           <a href="#contact" className="hover:opacity-70">
