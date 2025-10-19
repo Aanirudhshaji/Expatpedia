@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import faqImage from "../assets/ctabg.jpg"; // ✅ replace with your actual image path
+import { ctabg } from "../assets/image"; // ✅ replace with your actual image path
 
 const FAQ = () => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -34,12 +34,12 @@ const FAQ = () => {
   return (
     <section className="bg-white py-20 px-6 md:px-12 lg:px-20">
       {/* Section Header */}
-      <div className="text-center mb-12">
+      <div className="text-center md:text-left mb-12">
         <p className="text-[#0a66c2] text-sm tracking-wide mb-2">
           FAQs
         </p>
         <h2 className="text-3xl md:text-4xl font-semibold text-black leading-tight text-center md:text-left">
-          Common queries about our{" "}
+          Common queries <br /> about our{" "}
           <span className="text-[#0a66c2] font-bold">Expatpedia</span>
         </h2>
       </div>
@@ -49,7 +49,7 @@ const FAQ = () => {
         {/* Left Image Section */}
         <div className="relative rounded-2xl overflow-hidden shadow-lg">
         <img
-          src={faqImage}
+          src={ctabg}
           alt="Yoga help"
           className="w-full h-[400px] md:h-[480px] object-cover"
         />

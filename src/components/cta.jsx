@@ -1,14 +1,13 @@
 import React from "react";
-import bgImage from "../assets/ctabg.jpg";
+import { logo2, ctabg } from "../assets/image";
 import { ArrowRight } from "lucide-react";
-import logo from "../assets/logo2.png";
 
 const CTA = () => {
   return (
     <section
       className="relative flex flex-col items-center justify-center text-center h-auto md:min-h-screen py-16 md:py-24 px-6 md:px-12 lg:px-24 overflow-hidden"
       style={{
-        backgroundImage: `url(${bgImage})`,
+        backgroundImage: `url(${ctabg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -50,7 +49,7 @@ const CTA = () => {
 
           {/* Center Logo */}
           <img
-            src={logo}
+            src={logo2}
             alt="Logo"
             className="w-20 h-40 object-contain relative z-10"
           />
