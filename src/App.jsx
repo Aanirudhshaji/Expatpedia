@@ -19,6 +19,7 @@ import Aboutsec from "./aboutus/Aboutsec";
 import Members from "./community/Members";
 import Terms from "./Terms&Conditions/terms";
 import Policy from "./Terms&Conditions/policy";
+import Contact from "./contactus/contact";
 
 function App() {
   return (
@@ -83,6 +84,16 @@ function App() {
               </>
             }
           />
+          <Route
+            path="/contact"
+            element={
+              <>
+                <Contact />
+                <Footer />
+              </>
+            }
+          />
+
         </Routes>
       </div>
     </>

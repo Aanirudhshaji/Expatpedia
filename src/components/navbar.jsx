@@ -69,7 +69,7 @@ const Navbar = () => {
 
           {/* CTA Button */}
           <Link
-            to="#contact"
+            to="/contact"
             className="bg-[#0a66c2] text-white text-md font-medium px-5 py-2 rounded-xl hover:bg-[#0080ff] transition"
           >
             Contact Us
@@ -139,7 +139,7 @@ const Navbar = () => {
           <Link to="#blog" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Blog
           </Link>
-          <Link to="#contact" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
+          <Link to="/contact" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Contact
           </Link>
         </nav>
