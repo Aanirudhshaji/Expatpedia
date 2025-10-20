@@ -9,7 +9,7 @@ const TeamMembers = () => {
     const fetchTeamMembers = async () => {
       try {
         console.log("Fetching team members from API...");
-        const response = await fetch("http://127.0.0.1:8000/api/customUser/");
+        const response = await fetch("https://exapt-pedia.onrender.com");
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
