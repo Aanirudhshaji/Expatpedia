@@ -22,9 +22,12 @@ const Footer = () => {
           <p className="text-gray-400 md:max-w-md leading-relaxed md:self-start">
             Connect, Inspire & Empower — Explore the stories and journeys of exceptional professionals in the Kingdom of Bahrain.
           </p>
-          <button className="md:mr-1.5 mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition">
+          <a
+            href="/contact"
+            className="md:mr-1.5 mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition"
+          >
             Join The Directory →
-          </button>
+          </a>
         </div>
       </div>
 

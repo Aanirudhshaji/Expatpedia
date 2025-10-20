@@ -27,7 +27,7 @@ const Hero = () => {
     unity, and innovation across the Kingdom.
   </p>
         <a
-          href="#contact" // Replace with your actual contact section ID
+          href="/contact"
           className="backdrop-blur-md bg-white/10 border border-white/30 text-white font-semibold md:py-2 md:px-6 px-5 py-1.5 mt-2 rounded-full text-lg shadow-md hover:bg-white/20 transition duration-300"
         >
           Join Now

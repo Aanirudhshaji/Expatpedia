@@ -20,6 +20,7 @@ import Members from "./community/Members";
 import Terms from "./Terms&Conditions/terms";
 import Policy from "./Terms&Conditions/policy";
 import Contact from "./contactus/contact";
+import Events from "./events/eventui";
 
 function App() {
   return (
@@ -89,6 +90,15 @@ function App() {
             element={
               <>
                 <Contact />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/eventui"
+            element={
+              <>
+                <Events />
                 <Footer />
               </>
             }

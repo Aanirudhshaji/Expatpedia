@@ -57,9 +57,12 @@ const FAQ = () => {
           <h3 className="text-white text-2xl md:text-3xl font-semibold mb-4 leading-snug">
             Need any help? <br /> Don’t hesitate to join us.
           </h3>
-          <button className="bg-white text-gray-900 font-medium px-6 py-2 rounded-full hover:bg-gray-100 transition-all">
+          <a
+            href="/contact"
+            className="bg-white text-gray-900 font-medium px-6 py-2 rounded-full hover:bg-gray-100 transition-all"
+          >
             Join now →
-          </button>
+          </a>
         </div>
       </div>
 

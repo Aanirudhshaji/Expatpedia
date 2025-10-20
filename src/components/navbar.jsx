@@ -63,8 +63,8 @@ const Navbar = () => {
           <Link to="/members" className="text-white text-md hover:opacity-80">
             Community
           </Link>
-          <Link to="#blog" className="text-white text-md hover:opacity-80">
-            Blog
+          <Link to="/eventui" className="text-white text-md hover:opacity-80">
+            Events
           </Link>
 
           {/* CTA Button */}
@@ -136,8 +136,8 @@ const Navbar = () => {
           <Link to="/members" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Community
           </Link>
-          <Link to="#blog" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
-            Blog
+          <Link to="/eventui" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
+            Events
           </Link>
           <Link to="/contact" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Contact
