@@ -1,5 +1,4 @@
 import React from "react";
-import heroVideo from "../assets/hero.mp4";
 import { ChevronDown } from "lucide-react";
 const Hero = () => {
   return (
@@ -7,7 +6,7 @@ const Hero = () => {
       {/* Background Video */}
       <video
         className="absolute top-0 left-0 w-full h-full object-cover"
-        src={heroVideo}
+        src="https://res.cloudinary.com/demeflwme/video/upload/v1761030149/timelapse-of-a-dramatic-sunset-over-almuharraq-isl-2025-08-28-23-15-34-utc_ilctbl.mp4"
         autoPlay
         loop
         muted
@@ -19,7 +18,7 @@ const Hero = () => {
 
       {/* Centered Text */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-6">
-        <h1 className="text-white font-semibold leading-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl">
+        <h1 className="text-white font-medium leading-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl">
           Honouring Expatriate <br className="hidden sm:block" /> Excellence in Bahrain
         </h1>
         <p className="text-gray-200 text-base md:text-lg max-w-2xl mt-4 leading-relaxed">

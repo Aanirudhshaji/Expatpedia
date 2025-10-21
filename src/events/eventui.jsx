@@ -5,7 +5,7 @@ const EventSection = () => {
   const [loading, setLoading] = useState(true);
 
   // Replace this URL with your actual backend API endpoint
-  const API_URL = "https://api.example.com/events";
+  const API_URL = "https://exapt-pedia.onrender.com/";
 
   useEffect(() => {
     const fetchEvents = async () => {

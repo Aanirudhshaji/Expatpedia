@@ -45,7 +45,7 @@ const Contact = () => {
         submitData.append(key, value);
       });
 
-      await axios.post("http://127.0.0.1:8000/api/contact/", submitData, {
+      await axios.post("https://exapt-pedia.onrender.com/", submitData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -141,7 +141,7 @@ const Contact = () => {
       <div className="md:w-1/2 w-full align-bottom">
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 w-ful"
         >
           {/* First & Last Name */}
           <input
@@ -150,7 +150,7 @@ const Contact = () => {
             value={formData.first_name}
             onChange={handleChange}
             placeholder="First Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
           <input
@@ -159,7 +159,7 @@ const Contact = () => {
             value={formData.last_name}
             onChange={handleChange}
             placeholder="Last Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
 
@@ -170,7 +170,7 @@ const Contact = () => {
             value={formData.designation}
             onChange={handleChange}
             placeholder="Current Designation"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
           <input
@@ -179,7 +179,7 @@ const Contact = () => {
             value={formData.organization}
             onChange={handleChange}
             placeholder="Company / Organization Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
 
@@ -229,7 +229,7 @@ const Contact = () => {
             value={formData.email}
             onChange={handleChange}
             placeholder="Email Address"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
           <input
@@ -238,7 +238,7 @@ const Contact = () => {
             value={formData.contact_number}
             onChange={handleChange}
             placeholder="Contact Number"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-1"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
 
@@ -312,7 +312,7 @@ const Contact = () => {
           </div>
 
           {/* Submit */}
-          <div className="col-span-2 mt-4">
+          <div className="flex col-span-2 mt-4 justify-center md:justify-start">
             <button
               type="submit"
               disabled={loading}
