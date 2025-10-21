@@ -24,7 +24,7 @@ const Footer = () => {
           </p>
           <a
             href="/contact"
-            className="md:mr-1.5 mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition"
+            className="md:mr-1.5 mx-auto mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition"
           >
             Join The Directory →
           </a>
@@ -39,7 +39,7 @@ const Footer = () => {
             <Link to="/" className="hover:text-white transition">Home</Link>
             <Link to="/about" className="hover:text-white transition">About Us</Link>
             <Link to="/members" className="hover:text-white transition">Community</Link>
-            <Link to="/register" className="hover:text-white transition">Contact</Link>
+            <Link to="/contact" className="hover:text-white transition">Contact</Link>
           </div>
 
           {/* Social Icons */}

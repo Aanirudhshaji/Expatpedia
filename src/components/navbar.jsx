@@ -95,7 +95,7 @@ const Navbar = () => {
 
         <button
           onClick={() => setMenuOpen(true)}
-          className={`text-white transition-all duration-500 ${
+          className={`text-white transition-all duration-500 bg-[#0a66c2] rounded-full p-2 ${
             isScrolled ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"
           }`}
           aria-label="Open menu"
