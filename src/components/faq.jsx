@@ -32,7 +32,7 @@ const FAQ = () => {
   };
 
   return (
-    <section className="bg-white py-20 px-6 md:px-12 lg:px-20">
+    <section className="bg-white py-12 px-6 md:px-12 lg:px-20">
       {/* Section Header */}
       <div className="text-center md:text-left mb-12">
         <p className="text-[#0a66c2] text-sm tracking-wide mb-2">

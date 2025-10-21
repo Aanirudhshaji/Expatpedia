@@ -42,7 +42,7 @@ const blogs = [
 
 const Blog = () => {
   return (
-    <section className="bg-white mb-8 md:py-16 px-6 md:px-12 lg:px-20">
+    <section className="bg-white mb-8 py-10 md:py-16 px-6 md:px-12 lg:px-20">
       {/* Header */}
       <div className="max-w-7xl mx-auto text-center mb-14">
         <p className="text-[#0a66c2] text-sm font-semibold tracking-wide uppercase mb-2">
