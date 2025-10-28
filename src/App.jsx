@@ -37,6 +37,7 @@ function App() {
               <>
                 <Hero />
                 <AboutSection />
+                <Members />
                 <ImageScroll />
                 <CTA />
                 <FAQ />
@@ -58,15 +59,6 @@ function App() {
           />
 
           {/* Members Page */}
-          <Route
-            path="/members"
-            element={
-              <>
-                <Members />
-                <Footer />
-              </>
-            }
-          />
           <Route
             path="/terms"
             element={

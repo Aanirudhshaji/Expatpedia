@@ -60,9 +60,6 @@ const Navbar = () => {
           <Link to="/about" className="text-white text-md hover:opacity-80">
             About
           </Link>
-          <Link to="/members" className="text-white text-md hover:opacity-80">
-            Community
-          </Link>
           <Link to="/eventui" className="text-white text-md hover:opacity-80">
             Events
           </Link>
@@ -132,9 +129,6 @@ const Navbar = () => {
           </Link>
           <Link to="/about" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             About
-          </Link>
-          <Link to="/members" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
-            Community
           </Link>
           <Link to="/eventui" onClick={() => setMenuOpen(false)} className="hover:opacity-70">
             Events
