@@ -1,7 +1,105 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+
+// Constants
+const ITEMS_PER_PAGE = 8;
+const BACKEND_DOMAIN = "https://exaptpedia.onrender.com";
+const INITIAL_FETCH_PAGE_LIMIT = 50;
+
+// Utility functions
+const normalizeNameForLetterCheck = (name = "") =>
+  name.replace(/^\s*(dr\.?\s*)/i, "").trim();
+
+const isValidEmail = (email) => {
+  if (!email) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidPhone = (phone) => {
+  if (!phone || typeof phone !== "string") return false;
+  const cleaned = phone.replace(/\D/g, "");
+  return cleaned.length >= 7;
+};
+
+const extractField = (member, fields) => {
+  const field = fields.find((f) => {
+    const v = member[f];
+    return typeof v === "string" ? v.trim() : Boolean(v);
+  });
+  return field && typeof member[field] === "string"
+    ? member[field].trim()
+    : field
+    ? String(member[field])
+    : "";
+};
+
+// Custom hook for API calls
+const useApi = () => {
+  const fetchWithCache = useCallback(async (url) => {
+    const cacheKey = `api_cache_${btoa(url)}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    // Cache for 5 minutes
+    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    return data;
+  }, []);
+
+  return { fetchWithCache };
+};
+
+// Error Boundary Component
+class TeamMembersErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('TeamMembers Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="bg-white border border-red-100 rounded-2xl shadow-lg p-8 max-w-md text-center">
+            <div className="text-red-600 mb-4">
+              <svg className="w-14 h-14 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-red-700 mb-2">Component Error</h2>
+            <p className="text-gray-600 mb-4">Something went wrong loading team members.</p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg transition-transform transform hover:scale-105"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const TeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState([]);
-  const [filteredMembers, setFilteredMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -10,270 +108,404 @@ const TeamMembers = () => {
   const [filterType, setFilterType] = useState("all");
   const [selectedLetter, setSelectedLetter] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
+  const [jobCategories, setJobCategories] = useState([]);
+  const [selectedOccupation, setSelectedOccupation] = useState("");
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
 
-  const ITEMS_PER_PAGE = 8;
+  const { fetchWithCache } = useApi();
+  const abortControllerRef = useRef(null);
 
-  const normalizeNameForLetterCheck = (name = "") => {
-    return name.replace(/^\s*(dr\.?\s*)/i, "").trim();
-  };
+  // Memoized data processing
+  const processMembers = useCallback((members = []) =>
+    members.map((member) => {
+      const imageUrl = member.profile_image
+        ? member.profile_image.startsWith("http")
+          ? member.profile_image
+          : `${BACKEND_DOMAIN}${member.profile_image}`
+        : "";
 
-  // Helper functions
-  const isValidEmail = (email) => {
-    if (!email) return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+      return {
+        ...member,
+        email: extractField(member, ["email", "user_email", "contact_email"]),
+        phone: extractField(member, [
+          "phone",
+          "mobile",
+          "phone_number",
+          "contact_number",
+        ]),
+        name: member.name || member.full_name || "Unknown Name",
+        occupation: member.position || member.occupation || "Not specified",
+        description:
+          member.description ||
+          "This team member is a key part of our organization, driving growth and innovation.",
+        image: imageUrl,
+      };
+    }), []);
 
-  const isValidPhone = (phone) => {
-    if (!phone || typeof phone !== 'string') return false;
-    const cleaned = phone.replace(/\D/g, '');
-    return cleaned.length >= 7;
-  };
+  // Fetch job categories
+  const fetchJobCategories = useCallback(async () => {
+    try {
+      const data = await fetchWithCache(`${BACKEND_DOMAIN}/api/job-categories/`);
+      return data.results || [];
+    } catch (error) {
+      console.error("Error fetching job categories:", error);
+      return [];
+    }
+  }, [fetchWithCache]);
 
-  const extractField = (member, fields) => {
-    const field = fields.find(f => member[f]?.trim());
-    return field ? member[field].trim() : '';
-  };
+  // Build API URL based on filters
+  const buildMembersUrl = useCallback((page = 1, category = "") => {
+    let url = `${BACKEND_DOMAIN}/api/members/`;
+    const params = new URLSearchParams();
+    
+    if (page > 1) {
+      params.append('page', page);
+    }
+    
+    if (category) {
+      params.append('category', category);
+    }
+    
+    const queryString = params.toString();
+    return queryString ? `${url}?${queryString}` : url;
+  }, []);
 
-  const generatePlaceholderImage = (name) => {
-    const baseColor = "4F46E5";
-    const textColor = "FFFFFF"; 
-    const cleanName = (name || "Team Member").replace(/\s+/g, '+');
-    return `https://via.placeholder.com/400x400/${baseColor}/${textColor}?text=${cleanName}`;
-  };
+  // Fast fetch for first page only - immediate display
+  const fetchFirstPageMembers = useCallback(async (category = "") => {
+    try {
+      const firstUrl = buildMembersUrl(1, category);
+      const firstData = await fetchWithCache(firstUrl);
+      return processMembers(firstData.results || []);
+    } catch (error) {
+      console.error("Error fetching first page:", error);
+      return [];
+    }
+  }, [fetchWithCache, processMembers, buildMembersUrl]);
 
-  // -- Fetching all data from API
-  useEffect(() => {
-    const fetchTeamMembers = async () => {
-      setLoading(true);
-      try {
-        let allMembers = [];
-        let page = 1;
-        let hasMore = true;
+  // Background fetch for remaining pages
+  const fetchRemainingPages = useCallback(async (category = "", currentMembers = []) => {
+    let isMounted = true;
+    let page = 2;
+    let accumulated = [...currentMembers];
 
-        while (hasMore) {
-          const response = await fetch(
-            `https://admin.texbay.in/api/accounts/customUser/?page=${page}`
-          );
-          if (!response.ok)
-            throw new Error(`HTTP error! status: ${response.status}`);
-          
-          const data = await response.json();
-          const members = data.results || [];
-          
-          // Process members with contact info extraction
-          const processedMembers = members.map(member => ({
-            ...member,
-            email: extractField(member, ['email', 'user_email', 'contact_email']),
-            phone: extractField(member, ['phone', 'mobile', 'phone_number', 'contact_number']),
-            name: member.name || 'Unknown Name',
-            occupation: member.occupation || 'Not specified',
-            description: member.description || 'This team member is a key part of our organization, driving growth and innovation.',
-            image: member.image || ''
-          }));
+    try {
+      setBackgroundLoading(true);
+      
+      // Fetch first page again to get total count and next pages info
+      const firstUrl = buildMembersUrl(1, category);
+      const firstData = await fetchWithCache(firstUrl);
+      
+      if (!isMounted) return;
 
-          allMembers = allMembers.concat(processedMembers);
-          
-          // Check if there are more pages
-          hasMore = data.next && members.length > 0;
-          page++;
-          
-          // Safety limit
-          if (page > 50) {
-            console.warn("Page limit reached, stopping pagination");
-            break;
-          }
+      let hasMorePages = firstData.next;
+      
+      while (hasMorePages && page <= INITIAL_FETCH_PAGE_LIMIT) {
+        if (!isMounted) break;
+        
+        const pageUrl = buildMembersUrl(page, category);
+        const data = await fetchWithCache(pageUrl);
+        
+        if (!isMounted) break;
+        
+        if (!data.results?.length) break;
+
+        const newMembers = processMembers(data.results);
+        accumulated = accumulated.concat(newMembers);
+        
+        // Update state with new members
+        if (isMounted) {
+          setTeamMembers([...accumulated]);
         }
 
-        // Sort members by name starting with A
-        const sortedMembers = allMembers.sort((a, b) =>
-          (a.name || "").localeCompare(b.name || "")
-        );
+        hasMorePages = data.next;
+        if (!hasMorePages) break;
+        page++;
+      }
+      
+    } catch (error) {
+      if (isMounted && error.name !== 'AbortError') {
+        console.error("Error in background fetch:", error);
+      }
+    } finally {
+      if (isMounted) {
+        setBackgroundLoading(false);
+      }
+    }
 
-        setTimeout(() => {
-          setTeamMembers(sortedMembers);
-          setFilteredMembers(sortedMembers);
-          setLoading(false);
-        }, 300);
+    return () => { isMounted = false; };
+  }, [fetchWithCache, processMembers, buildMembersUrl]);
+
+  // Main data fetching effect with proper cleanup
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch job categories first
+        const categories = await fetchJobCategories();
+        
+        if (isMounted) {
+          setJobCategories(categories);
+          
+          // Then fetch first page members for immediate display
+          const firstPageMembers = await fetchFirstPageMembers();
+          if (isMounted) {
+            setTeamMembers(firstPageMembers);
+            setLoading(false);
+            
+            // Start background loading of remaining pages
+            fetchRemainingPages("", firstPageMembers);
+          }
+        }
       } catch (err) {
-        setError(err.message);
-        setLoading(false);
+        if (isMounted && err.name !== 'AbortError') {
+          setError(err.message || "Failed to fetch data");
+          setLoading(false);
+        }
       }
     };
 
-    fetchTeamMembers();
-  }, []);
+    fetchInitialData();
 
-  // -- Filtering, searching, sorting
+    return () => {
+      isMounted = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchJobCategories, fetchFirstPageMembers, fetchRemainingPages]);
+
+  // Effect to refetch when occupation filter changes
   useEffect(() => {
-    let filtered = [...teamMembers];
+    let isMounted = true;
 
-    if (filterType === "doctor") {
-      filtered = filtered.filter((member) => {
-        const name = (member?.name || "").toLowerCase();
-        const occupation = (member?.occupation || "").toLowerCase();
-        return (
-          name.startsWith("dr.") ||
-          name.startsWith("dr ") ||
-          occupation.includes("doctor")
-        );
-      });
-    } else if (filterType === "letter" && selectedLetter) {
+    const fetchByOccupation = async () => {
+      if (filterType === "occupation" && selectedOccupation) {
+        try {
+          setLoading(true);
+          
+          // Fast fetch first page for immediate display
+          const firstPageMembers = await fetchFirstPageMembers(selectedOccupation);
+          if (isMounted) {
+            setTeamMembers(firstPageMembers);
+            setLoading(false);
+            
+            // Background load remaining pages
+            fetchRemainingPages(selectedOccupation, firstPageMembers);
+          }
+        } catch (err) {
+          if (isMounted && err.name !== 'AbortError') {
+            setError(err.message || "Failed to fetch data");
+            setLoading(false);
+          }
+        }
+      }
+    };
+
+    fetchByOccupation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedOccupation, filterType, fetchFirstPageMembers, fetchRemainingPages]);
+
+  // Effect for letter filter (client-side only - no API call needed)
+  useEffect(() => {
+    if (filterType === "letter" && selectedLetter) {
+      // Letter filter is client-side only, no loading needed
+      setCurrentPage(1);
+    }
+  }, [filterType, selectedLetter]);
+
+  // Effect for "all" filter
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchAllMembers = async () => {
+      if (filterType === "all" && !selectedOccupation && !selectedLetter) {
+        try {
+          setLoading(true);
+          
+          // Fast fetch first page for immediate display
+          const firstPageMembers = await fetchFirstPageMembers();
+          if (isMounted) {
+            setTeamMembers(firstPageMembers);
+            setLoading(false);
+            
+            // Background load remaining pages
+            fetchRemainingPages("", firstPageMembers);
+          }
+        } catch (err) {
+          if (isMounted && err.name !== 'AbortError') {
+            setError(err.message || "Failed to fetch data");
+            setLoading(false);
+          }
+        }
+      }
+    };
+
+    fetchAllMembers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [filterType, selectedOccupation, selectedLetter, fetchFirstPageMembers, fetchRemainingPages]);
+
+  // Memoized filtered members with better performance
+  const filteredMembers = useMemo(() => {
+    let filtered = teamMembers;
+
+    // Apply letter filter (client-side since it's alphabetical)
+    if (filterType === "letter" && selectedLetter) {
       const letter = selectedLetter.toLowerCase();
       filtered = filtered.filter((member) => {
-        const normalized = normalizeNameForLetterCheck(member?.name || "")
-          .toLowerCase();
+        const normalized = normalizeNameForLetterCheck(member?.name || "").toLowerCase();
         return normalized.startsWith(letter);
       });
     }
 
+    // Apply search (client-side)
     if (searchQuery.trim() !== "") {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((member) =>
-        (member?.name || "").toLowerCase().includes(q)
+        (member?.name || "").toLowerCase().includes(q) ||
+        (member?.occupation || "").toLowerCase().includes(q)
       );
     }
 
-    filtered.sort((a, b) => {
+    // Sort (memoize sort function)
+    return [...filtered].sort((a, b) => {
       const nameA = (a?.name || "").toLowerCase();
       const nameB = (b?.name || "").toLowerCase();
       return sortOrder === "asc"
         ? nameA.localeCompare(nameB)
         : nameB.localeCompare(nameA);
     });
+  }, [teamMembers, searchQuery, filterType, selectedLetter, sortOrder]);
 
-    setFilteredMembers(filtered);
-    setCurrentPage(1);
-  }, [searchQuery, filterType, selectedLetter, teamMembers, sortOrder]);
+  // Memoized pagination calculations
+  const { totalPages, paginatedMembers } = useMemo(() => {
+    const total = Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE));
+    const current = Math.min(currentPage, total);
+    const startIndex = (current - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    
+    return {
+      totalPages: total,
+      paginatedMembers: filteredMembers.slice(startIndex, endIndex)
+    };
+  }, [filteredMembers, currentPage]);
 
-  // Clamp currentPage whenever filteredMembers changes
+  // Reset to page 1 when filters change
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE));
-    setCurrentPage((prev) => Math.min(prev, totalPages));
-  }, [filteredMembers, ITEMS_PER_PAGE]);
+    setCurrentPage(1);
+  }, [searchQuery, filterType, selectedLetter, sortOrder, selectedOccupation]);
 
-  // Helper to get a stable key for a member
-  const getMemberKey = (member, idxGlobal) => {
-    return (
-      member?.id ??
-      member?.pk ??
-      member?.email ??
-      member?.username ??
-      `idx-${idxGlobal}`
-    );
-  };
+  // Memoized event handlers with proper dependencies
+  const handleFilterChange = useCallback((type, value) => {
+    setFilterType(type);
+    if (type === "occupation") {
+      setSelectedOccupation(value);
+      setSelectedLetter("");
+    } else if (type === "letter") {
+      setSelectedLetter(value);
+      setSelectedOccupation("");
+    } else {
+      // "all" filter
+      setSelectedOccupation("");
+      setSelectedLetter("");
+    }
+  }, []);
 
-  // Toggle flip by stable key
-  const toggleFlip = (memberKey) => {
+  const toggleFlip = useCallback((memberKey) => {
     setFlippedCards((prev) => ({
       ...prev,
       [memberKey]: !prev[memberKey],
     }));
-  };
+  }, []);
 
-  // Handle image error
-  const handleImageError = (e, memberKey) => {
-    e.target.src = generatePlaceholderImage("Team Member");
-  };
-
-  // Pagination helpers
-  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE) || 1;
-
-  const getPageNumbers = () => {
-    const total = totalPages;
-    const current = currentPage;
-    const pages = [];
-
-    // If small number of pages, show all
-    if (total <= 7) {
-      for (let i = 1; i <= total; i++) pages.push(i);
-      return pages;
-    }
-
-    // Always show first
-    pages.push(1);
-
-    // Determine window around current page
-    let start = Math.max(2, current - 1);
-    let end = Math.min(total - 1, current + 1);
-
-    // If current is near beginning, extend right
-    if (current <= 3) {
-      start = 2;
-      end = 4;
-    }
-
-    // If current near end, extend left
-    if (current >= total - 2) {
-      start = total - 3;
-      end = total - 1;
-    }
-
-    if (start > 2) {
-      pages.push("left-ellipsis");
-    }
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-
-    if (end < total - 1) {
-      pages.push("right-ellipsis");
-    }
-
-    // Always show last
-    pages.push(total);
-
-    return pages;
-  };
-
-  // Slice for current page
-  const paginatedMembers = filteredMembers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Clear all filters
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilterType("all");
     setSelectedLetter("");
+    setSelectedOccupation("");
     setSearchQuery("");
-  };
+  }, []);
 
-  // ------------------ RENDER ------------------
+  // Memoized pagination handlers
+  const paginationHandlers = useMemo(() => ({
+    goToFirstPage: () => setCurrentPage(1),
+    goToPreviousPage: () => setCurrentPage(prev => Math.max(1, prev - 1)),
+    goToNextPage: () => setCurrentPage(prev => Math.min(totalPages, prev + 1)),
+    goToLastPage: () => setCurrentPage(totalPages),
+  }), [totalPages]);
 
-  if (loading)
+  // Memoized member key generator
+  const getMemberKey = useCallback((member, idxGlobal) => {
+    const baseKey = member?.id ?? member?.pk ?? `idx-${idxGlobal}`;
+    return `${baseKey}-${idxGlobal}`;
+  }, []);
+
+  // Memoized pagination range calculator
+  const paginationRange = useMemo(() => {
+    const total = totalPages;
+    const current = currentPage;
+    const delta = 1;
+    
+    const range = [1];
+    for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+      range.push(i);
+    }
+    if (total > 1) range.push(total);
+
+    const rangeWithDots = [];
+    let prev = 0;
+    
+    for (let i = 0; i < range.length; i++) {
+      const page = range[i];
+      if (i === 0) {
+        rangeWithDots.push(page);
+        prev = page;
+        continue;
+      }
+      if (page - prev > 1) rangeWithDots.push('...');
+      rangeWithDots.push(page);
+      prev = page;
+    }
+
+    return rangeWithDots;
+  }, [currentPage, totalPages]);
+
+  // Simple loading component without progress bar
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
-        <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-blue-600 mb-6"></div>
+        <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-blue-600 mb-4"></div>
         <p className="text-gray-600 text-lg font-medium tracking-wide">
-          Loading team members...
+          {filterType === "occupation" && selectedOccupation 
+            ? `Loading ${selectedOccupation} members...` 
+            : "Loading team members..."
+          }
+        </p>
+        <p className="text-gray-500 text-sm mt-2">
+          Loading first page...
         </p>
       </div>
     );
+  }
 
-  if (error)
+  // Error component
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white border border-red-100 rounded-2xl shadow-lg p-8 max-w-md text-center">
           <div className="text-red-600 mb-4">
-            <svg
-              className="w-14 h-14 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-14 h-14 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-semibold text-red-700 mb-2">
-            Oops! Something went wrong
-          </h2>
+          <h2 className="text-2xl font-semibold text-red-700 mb-2">Oops! Something went wrong</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -284,281 +516,436 @@ const TeamMembers = () => {
         </div>
       </div>
     );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-16 pb-24 px-4 sm:px-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Heading */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6">
-            Meet Our Exceptional Team
-          </h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Driven by creativity and collaboration, our experts deliver tailored
-            solutions to bring your ideas to life.
-          </p>
-        </div>
-
-        {/* Filters & Search */}
-        <div className="mb-10">
-          <div className="flex items-center gap-3 overflow-x-auto pb-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setFilterType("all");
-                  setSelectedLetter("");
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                  filterType === "all"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                }`}
-              >
-                All
-              </button>
-
-              <button
-                onClick={() => {
-                  setFilterType("doctor");
-                  setSelectedLetter("");
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                  filterType === "doctor"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                }`}
-              >
-                Doctor
-              </button>
-
-              <select
-                value={selectedLetter}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedLetter(val);
-                  setFilterType(val ? "letter" : "all");
-                }}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm"
-              >
-                <option value="">A–Z</option>
-                {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
-                  <option key={letter} value={letter}>
-                    {letter}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="ml-auto flex items-center gap-2 shrink-0">
-              <input
-                type="text"
-                placeholder="Search by name..."
-                className="border border-gray-300 rounded-lg px-4 py-2 w-48 sm:w-64 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <button
-                onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition"
-              >
-                Sort {sortOrder === "asc" ? "A–Z" : "Z–A"}
-              </button>
-            </div>
+    <TeamMembersErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-6 pb-24 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-700 mb-6">
+              Meet Our Members
+            </h1>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Driven by creativity and collaboration, <br /> our members deliver
+              tailored solutions to bring your ideas to life.
+            </p>
           </div>
-        </div>
 
-        {/* Results count */}
-        <div className="mb-6 text-gray-600">
-          Showing {paginatedMembers.length} of {filteredMembers.length} team members
-          {filteredMembers.length !== teamMembers.length && 
-            ` (filtered from ${teamMembers.length} total)`
-          }
-        </div>
+          {/* Filters & Search */}
+          <FiltersSection
+            filterType={filterType}
+            selectedOccupation={selectedOccupation}
+            selectedLetter={selectedLetter}
+            searchQuery={searchQuery}
+            sortOrder={sortOrder}
+            jobCategories={jobCategories}
+            onFilterChange={handleFilterChange}
+            onSearchChange={setSearchQuery}
+            onSortChange={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+            onClearFilters={clearAllFilters}
+          />
 
-        {/* Members Grid - 1 column on mobile */}
-        {paginatedMembers.length === 0 ? (
-          <div className="py-24 bg-gradient-to-b from-gray-50 to-white text-center">
-            <div className="bg-white shadow-md rounded-2xl p-10 inline-block">
-              <svg
-                className="w-20 h-20 text-gray-300 mx-auto mb-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                />
-              </svg>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Team Members Found</h3>
-              <p className="text-gray-500 text-sm mb-4">Try changing your filter or search query.</p>
-              <button
-                onClick={clearAllFilters}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Clear filters
-              </button>
+          {/* Background loading indicator */}
+          {backgroundLoading && (
+            <div className="mb-4 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-600 mr-2"></div>
+              <p className="text-gray-600 text-sm">Loading more members in background...</p>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {paginatedMembers.map((member, idxLocal) => {
-              const idxGlobal = (currentPage - 1) * ITEMS_PER_PAGE + idxLocal;
-              const memberKey = getMemberKey(member, idxGlobal);
-              const isFlipped = !!flippedCards[memberKey];
-              const hasEmail = isValidEmail(member.email);
-              const hasPhone = isValidPhone(member.phone);
+          )}
 
-              return (
-                <div
-                  key={memberKey}
-                  className="group relative w-full h-[280px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective"
-                  onClick={() => toggleFlip(memberKey)}
+          {/* Results count */}
+          <ResultsCount 
+            currentCount={paginatedMembers.length}
+            totalCount={filteredMembers.length}
+            originalCount={teamMembers.length}
+            jobCategoriesCount={jobCategories.length}
+            selectedOccupation={selectedOccupation}
+            backgroundLoading={backgroundLoading}
+          />
+
+          {/* Members Grid */}
+          <MembersGrid
+            members={paginatedMembers}
+            currentPage={currentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+            flippedCards={flippedCards}
+            onToggleFlip={toggleFlip}
+            getMemberKey={getMemberKey}
+            onClearFilters={clearAllFilters}
+          />
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              paginationRange={paginationRange}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              handlers={paginationHandlers}
+            />
+          )}
+        </div>
+      </div>
+    </TeamMembersErrorBoundary>
+  );
+};
+
+// Optimized sub-components (keep the same as before)
+const FiltersSection = React.memo(({
+  filterType,
+  selectedOccupation,
+  selectedLetter,
+  searchQuery,
+  sortOrder,
+  jobCategories,
+  onFilterChange,
+  onSearchChange,
+  onSortChange,
+  onClearFilters
+}) => (
+  <div className="mb-10">
+    {/* Desktop Filters */}
+    <div className="hidden md:flex items-center gap-3 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onFilterChange("all", "")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
+            filterType === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+          }`}
+        >
+          All
+        </button>
+
+        <select
+          value={selectedOccupation}
+          onChange={(e) => onFilterChange("occupation", e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm w-48"
+        >
+          <option value="">Job Category</option>
+          {jobCategories.map((category) => (
+            <option key={category.id} value={category.name}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedLetter}
+          onChange={(e) => onFilterChange("letter", e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm w-20"
+        >
+          <option value="">A–Z</option>
+          {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+            <option key={letter} value={letter}>
+              {letter}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+        <input
+          type="text"
+          placeholder="Search by name or occupation..."
+          className="border border-gray-300 rounded-lg px-4 py-2 w-48 sm:w-64 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        <button
+          onClick={onSortChange}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0a66c2] text-white hover:bg-[#88c2fb] transition"
+        >
+          Sort {sortOrder === "asc" ? "A–Z" : "Z–A"}
+        </button>
+        <button
+          onClick={onClearFilters}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-500 text-white hover:bg-gray-600 transition"
+        >
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    {/* Mobile Filters */}
+    <div className="md:hidden space-y-3">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <button
+          onClick={() => onFilterChange("all", "")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
+            filterType === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+          }`}
+        >
+          All
+        </button>
+
+        <select
+          value={selectedOccupation}
+          onChange={(e) => onFilterChange("occupation", e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm w-40"
+        >
+          <option value="">Job Category</option>
+          {jobCategories.map((category) => (
+            <option key={category.id} value={category.name}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedLetter}
+          onChange={(e) => onFilterChange("letter", e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm w-20"
+        >
+          <option value="">A–Z</option>
+          {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+            <option key={letter} value={letter}>
+              {letter}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Search by name or occupation..."
+          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none text-gray-700 text-sm"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        <button
+          onClick={onSortChange}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition whitespace-nowrap"
+        >
+          Sort {sortOrder === "asc" ? "A–Z" : "Z–A"}
+        </button>
+        <button
+          onClick={onClearFilters}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-500 text-white hover:bg-gray-600 transition whitespace-nowrap"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+));
+
+const ResultsCount = React.memo(({ currentCount, totalCount, originalCount, jobCategoriesCount, selectedOccupation, backgroundLoading }) => (
+  <div className="mb-6 text-gray-600">
+    {selectedOccupation ? (
+      <>
+        Showing {currentCount} {selectedOccupation} team members
+        {totalCount !== originalCount && ` (filtered from ${originalCount} total)`}
+      </>
+    ) : (
+      <>
+        Showing {currentCount} of {totalCount} team members
+        {totalCount !== originalCount && ` (filtered from ${originalCount} total)`}
+      </>
+    )}
+    {jobCategoriesCount > 0 && (
+      <span className="text-sm text-blue-600 ml-2">
+        • {jobCategoriesCount} job categories available
+      </span>
+    )}
+    {backgroundLoading && (
+      <span className="text-sm text-green-600 ml-2">
+        • Loading more...
+      </span>
+    )}
+  </div>
+));
+
+// Keep the rest of the components exactly the same (MembersGrid, MemberCard, Pagination, PaginationButton)
+const MembersGrid = React.memo(({ members, currentPage, itemsPerPage, flippedCards, onToggleFlip, getMemberKey, onClearFilters }) => {
+  if (members.length === 0) {
+    return (
+      <div className="py-24 bg-gradient-to-b from-gray-50 to-white text-center">
+        <div className="bg-white shadow-md rounded-2xl p-10 inline-block">
+          <svg className="w-20 h-20 text-gray-300 mx-auto mb-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+          </svg>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Team Members Found</h3>
+          <p className="text-gray-500 text-sm mb-4">Try changing your filter or search query.</p>
+          <button onClick={onClearFilters} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Clear filters
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {members.map((member, idxLocal) => (
+        <MemberCard
+          key={getMemberKey(member, (currentPage - 1) * itemsPerPage + idxLocal)}
+          member={member}
+          isFlipped={!!flippedCards[getMemberKey(member, (currentPage - 1) * itemsPerPage + idxLocal)]}
+          onToggleFlip={() => onToggleFlip(getMemberKey(member, (currentPage - 1) * itemsPerPage + idxLocal))}
+        />
+      ))}
+    </div>
+  );
+});
+
+const MemberCard = React.memo(({ member, isFlipped, onToggleFlip }) => {
+  const hasEmail = isValidEmail(member.email);
+  const hasPhone = isValidPhone(member.phone);
+  const [imgError, setImgError] = useState(false);
+  const placeholderImage = "https://via.placeholder.com/600x400?text=No+Image";
+
+  return (
+    <div 
+      className="group relative w-full h-[280px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective" 
+      onClick={onToggleFlip}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggleFlip();
+        }
+      }}
+      aria-label={`Flip card for ${member.name}, ${member.occupation}`}
+    >
+      <div className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d ${isFlipped ? "rotate-y-180" : ""}`} style={{ transformStyle: "preserve-3d" }}>
+        {/* Front */}
+        <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-lg bg-white" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+          <img 
+            src={imgError ? placeholderImage : (member.image || placeholderImage)} 
+            alt={member.name} 
+            loading="lazy" 
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6 text-white">
+            <h3 className="text-sm sm:text-lg font-semibold">{member.name || "Unknown Name"}</h3>
+            <p className="text-xs sm:text-sm text-gray-200">{member.occupation || "Not specified"}</p>
+          </div>
+          <div className="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">Click to flip</div>
+        </div>
+
+        {/* Back */}
+        <div className="absolute inset-0 rounded-3xl bg-blue-600 text-white px-4 sm:px-6 py-4 sm:py-6 flex flex-col justify-between" style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+          <div>
+            <h3 className="text-sm sm:text-2xl font-semibold mb-2">{member.name || "Unknown Name"}</h3>
+            <p className="text-xs sm:text-base opacity-90 mb-4">{member.occupation || "Not specified"}</p>
+            <p className="text-sm sm:text-sm leading-relaxed opacity-90 mb-6">{member.description}</p>
+          </div>
+          <div className="flex flex-col items-center space-y-3">
+            <p className="text-xs text-white/70">Get in touch</p>
+            <div className="flex justify-center space-x-4">
+              {hasEmail && (
+                <a 
+                  href={`mailto:${member.email}`} 
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white hover:text-blue-600 transition-colors" 
+                  onClick={(e) => e.stopPropagation()} 
+                  title="Send Email"
+                  aria-label={`Send email to ${member.name}`}
                 >
-                  <div
-                    className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d ${isFlipped ? "rotate-y-180" : ""}`}
-                    style={{
-                      transformStyle: "preserve-3d",
-                    }}
-                  >
-                    {/* Front */}
-                    <div
-                      className="absolute inset-0 rounded-3xl overflow-hidden shadow-lg bg-white"
-                      style={{
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                      }}
-                    >
-                      <img
-                        src={member.image || generatePlaceholderImage(member.name)}
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => handleImageError(e, memberKey)}
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6 text-white">
-                        <h3 className="text-sm sm:text-lg font-semibold">{member.name || "Unknown Name"}</h3>
-                        <p className="text-xs sm:text-sm text-gray-200">{member.occupation || "Not specified"}</p>
-                      </div>
-                      <div className="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                        Click to flip
-                      </div>
-                    </div>
-
-                    {/* Back with Contact Icons */}
-                    <div
-                      className="absolute inset-0 rounded-3xl bg-blue-600 text-white px-4 sm:px-6 py-4 sm:py-6 flex flex-col justify-between"
-                      style={{
-                        transform: "rotateY(180deg)",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                      }}
-                    >
-                      <div>
-                        <h3 className="text-sm sm:text-2xl font-semibold mb-2">{member.name || "Unknown Name"}</h3>
-                        <p className="text-xs sm:text-base opacity-90 mb-4">{member.occupation || "Not specified"}</p>
-                        <p className="text-sm sm:text-sm leading-relaxed opacity-90 mb-6">
-                          {member.description}
-                        </p>
-                      </div>
-                      
-                      {/* Contact Icons */}
-                      <div className="flex flex-col items-center space-y-3">
-                        <p className="text-xs text-white/70">Get in touch</p>
-                        <div className="flex justify-center space-x-4">
-                          {/* Email Icon */}
-                          {hasEmail && (
-                            <a 
-                              href={`mailto:${member.email}`}
-                              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white hover:text-blue-600 transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Send Email"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                              </svg>
-                            </a>
-                          )}
-                          
-                          {/* Phone Icon */}
-                          {hasPhone && (
-                            <a 
-                              href={`tel:${member.phone}`}
-                              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white hover:text-blue-600 transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Call"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                              </svg>
-                            </a>
-                          )}
-                          
-                          {/* No contact info */}
-                          {!hasEmail && !hasPhone && (
-                            <div className="text-center">
-                              <svg className="w-8 h-8 mx-auto mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <p className="text-xs text-white/70">No contact info</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {filteredMembers.length > ITEMS_PER_PAGE && (
-          <div className="mt-12 flex justify-center items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Previous
-            </button>
-
-            {getPageNumbers().map((item, idx) => {
-              if (item === "left-ellipsis" || item === "right-ellipsis") {
-                return <span key={item + idx} className="px-3 py-2 text-gray-500">...</span>;
-              }
-
-              return (
-                <button
-                  key={item}
-                  onClick={() => setCurrentPage(Number(item))}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    currentPage === item
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                  }`}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </a>
+              )}
+              {hasPhone && (
+                <a 
+                  href={`tel:${member.phone}`} 
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white hover:text-blue-600 transition-colors" 
+                  onClick={(e) => e.stopPropagation()} 
+                  title="Call"
+                  aria-label={`Call ${member.name}`}
                 >
-                  {item}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() =>
-                setCurrentPage((p) => Math.min(p + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-            </button>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.684l1.22 3.664a1 1 0 01-.272 1.05l-2.32 2.32a11.042 11.042 0 005.657 5.657l2.32-2.32a1 1 0 011.05-.272l3.664 1.22a1 1 0 01.684.95V19a2 2 0 01-2 2h-1C9.163 21 3 14.837 3 7V5z" />
+                  </svg>
+                </a>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
-};
+});
+
+const Pagination = React.memo(({ currentPage, totalPages, paginationRange, itemsPerPage, onPageChange, handlers }) => (
+  <div className="flex justify-center mt-12">
+    <div className="flex flex-col items-center gap-4 w-full max-w-4xl">
+      <div className="sm:hidden text-sm text-gray-600 font-medium">Page {currentPage} of {totalPages}</div>
+      
+      <div className="flex items-center gap-1 sm:gap-2 bg-white rounded-xl shadow-sm border border-gray-200 px-3 sm:px-4 py-2">
+        <PaginationButton onClick={handlers.goToFirstPage} disabled={currentPage === 1} title="First Page" aria-label="Go to first page">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+        </PaginationButton>
+
+        <PaginationButton onClick={handlers.goToPreviousPage} disabled={currentPage === 1} className="flex items-center gap-1 px-3 py-2 text-sm font-medium" aria-label="Go to previous page">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="hidden sm:inline">Previous</span>
+        </PaginationButton>
+
+        <div className="flex items-center gap-1 mx-2">
+          {paginationRange.map((page, index) => (
+            page === '...' ? (
+              <span key={`dots-${index}`} className="px-2 py-1 text-gray-400 text-sm font-medium" aria-hidden="true">•••</span>
+            ) : (
+              <button 
+                key={page} 
+                onClick={() => onPageChange(Number(page))} 
+                className={`min-w-[2.5rem] h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 ${page === currentPage ? "bg-blue-600 text-white shadow-md" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
+                aria-label={`Go to page ${page}`}
+                aria-current={page === currentPage ? 'page' : undefined}
+              >
+                {page}
+              </button>
+            )
+          ))}
+        </div>
+
+        <PaginationButton onClick={handlers.goToNextPage} disabled={currentPage === totalPages} className="flex items-center gap-1 px-3 py-2 text-sm font-medium" aria-label="Go to next page">
+          <span className="hidden sm:inline">Next</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </PaginationButton>
+
+        <PaginationButton onClick={handlers.goToLastPage} disabled={currentPage === totalPages} title="Last Page" aria-label="Go to last page">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </PaginationButton>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-4 text-sm text-gray-600">
+        <div className="font-medium">Page {currentPage} of {totalPages}</div>
+        <div className="text-gray-500">{itemsPerPage} items per page</div>
+      </div>
+    </div>
+  </div>
+));
+
+const PaginationButton = React.memo(({ onClick, disabled, title, className = "", children, ...props }) => (
+  <button 
+    onClick={onClick} 
+    disabled={disabled} 
+    className={`p-2 rounded-lg transition-all duration-200 ${disabled ? "text-gray-300 cursor-not-allowed" : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"} ${className}`} 
+    title={title}
+    {...props}
+  >
+    {children}
+  </button>
+));
 
 export default TeamMembers;

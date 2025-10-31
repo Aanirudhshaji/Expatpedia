@@ -4,33 +4,41 @@ import { Mail, Phone, MapPin } from "lucide-react";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
-    first_name: "",
-    last_name: "",
-    designation: "",
-    organization: "",
-    is_doctor: false,
-    hospital_name: "",
-    speciality: "",
+    name: "",
+    phone: "",
     email: "",
-    contact_number: "",
-    image: null,
-    consent: false,
+    occupation_category: "",
+    position: "",
+    profile_image: null,
   });
-
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-
-    if (type === "checkbox" || type === "radio") {
-      setFormData({ ...formData, [name]: checked });
-    } else if (type === "file") {
-      setFormData({ ...formData, [name]: files[0] });
+  // Simple input change handler
+  const handleInputChange = (e) => {
+    const { name, value, type, files } = e.target;
+    
+    if (type === "file") {
+      const file = files[0] || null;
+      setFormData(prev => ({ ...prev, [name]: file }));
+      
+      // Create preview URL
+      if (file) {
+        const url = URL.createObjectURL(file);
+        setImagePreviewUrl(url);
+      } else {
+        setImagePreviewUrl(null);
+      }
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleFileUploadClick = () => {
+    const fileInput = document.getElementById("profileImageUpload");
+    fileInput?.click();
   };
 
   const handleSubmit = async (e) => {
@@ -40,34 +48,85 @@ const Contact = () => {
     setErrorMsg("");
 
     try {
-      const submitData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        submitData.append(key, value);
-      });
+      let submitData;
+      let headers = {};
 
-      await axios.post("https://exapt-pedia.onrender.com/", submitData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      if (formData.profile_image) {
+        const formDataObj = new FormData();
+        Object.entries(formData).forEach(([key, value]) => {
+          if (value !== null && value !== "") {
+            formDataObj.append(key, value);
+          }
+        });
+        submitData = formDataObj;
+        headers["Content-Type"] = "multipart/form-data";
+      } else {
+        const { profile_image, ...dataWithoutImage } = formData;
+        submitData = dataWithoutImage;
+        headers["Content-Type"] = "application/json";
+      }
+
+      const response = await axios.post(
+        "https://exaptpedia.onrender.com/api/contact/",
+        submitData,
+        { headers }
+      );
 
       setSuccessMsg("Registration submitted successfully!");
       setFormData({
-        first_name: "",
-        last_name: "",
-        designation: "",
-        organization: "",
-        is_doctor: false,
-        hospital_name: "",
-        speciality: "",
+        name: "",
+        phone: "",
         email: "",
-        contact_number: "",
-        image: null,
-        consent: false,
+        occupation_category: "",
+        position: "",
+        profile_image: null,
       });
+      setImagePreviewUrl(null);
+
+      // Clear file input
+      const fileInput = document.getElementById("profileImageUpload");
+      if (fileInput) fileInput.value = "";
+
     } catch (error) {
-      console.error("Error sending registration:", error);
-      setErrorMsg("Something went wrong. Please try again.");
+      let errorMessage = "Request failed. Please try again.";
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        
+        if (status === 400 && typeof data === 'object') {
+          const errors = Object.values(data).flat();
+          errorMessage = errors.join(', ');
+        } else if (status === 413) {
+          errorMessage = "File too large. Please upload a smaller image.";
+        } else if (status === 415) {
+          errorMessage = "Unsupported file type. Please use JPEG, PNG, or GIF.";
+        } else {
+          errorMessage = `Server error: ${status}. Please try again.`;
+        }
+      } else if (error.request) {
+        errorMessage = "No response from server. Please check your internet connection.";
+      }
+      
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const contactSections = {
+    media: {
+      title: "Media Enquiries",
+      items: [
+        { icon: Mail, href: "mailto:media@expatpedia.com", text: "media@expatpedia.com" }
+      ]
+    },
+    general: {
+      title: "General Enquiries",
+      items: [
+        { icon: Mail, href: "mailto:info@expatpedia.com", text: "info@expatpedia.com" },
+        { icon: Phone, href: "tel:0477044273", text: "0477 044 273" },
+        { icon: MapPin, text: "PO Box 12045, Manama, Kingdom of Bahrain" }
+      ]
     }
   };
 
@@ -86,53 +145,42 @@ const Contact = () => {
           Be part of a vibrant community that celebrates collaboration and growth. 
           Join us today by filling out the form below.
         </p>
+
         {/* Desktop Contact Info */}
         <div className="hidden md:block mt-12">
-          {/* Media Enquiries */}
           <div className="mb-10">
             <h2 className="text-xl text-[#0a66c2] font-medium mb-4 font-serif">
-              Media Enquiries
+              {contactSections.media.title}
             </h2>
-            <div className="flex items-center gap-3 text-[#0a66c2]">
-              <Mail className="w-6 h-6 text-black" />
-              <a
-                href="mailto:media@expatpedia.com"
-                className="text-lg hover:underline"
-              >
-                media@expatpedia.com
-              </a>
-            </div>
+            {contactSections.media.items.map((item, index) => (
+              <div key={index} className="flex items-center gap-3 text-[#0a66c2] mb-3">
+                <item.icon className="w-6 h-6 text-black" />
+                {item.href ? (
+                  <a href={item.href} className="text-lg hover:underline">
+                    {item.text}
+                  </a>
+                ) : (
+                  <p className="text-lg">{item.text}</p>
+                )}
+              </div>
+            ))}
           </div>
-
-          {/* General Enquiries */}
           <div>
             <h2 className="text-xl text-[#0a66c2] font-medium mb-4 font-serif">
-              General Enquiries
+              {contactSections.general.title}
             </h2>
-
-            <div className="flex items-center gap-3 text-[#0a66c2] mb-3">
-              <Mail className="w-6 h-6 text-black" />
-              <a
-                href="mailto:info@expatpedia.com"
-                className="text-lg hover:underline"
-              >
-                info@expatpedia.com
-              </a>
-            </div>
-
-            <div className="flex items-center gap-3 text-[#0a66c2] mb-3">
-              <Phone className="w-6 h-6 text-black" />
-              <a href="tel:0477044273" className="text-lg hover:underline">
-                0477 044 273
-              </a>
-            </div>
-
-            <div className="flex items-center gap-3 text-[#0a66c2]">
-              <MapPin className="w-6 h-6 text-black" />
-              <p className="text-lg">
-                PO Box 12045, Manama, Kingdom of Bahrain
-              </p>
-            </div>
+            {contactSections.general.items.map((item, index) => (
+              <div key={index} className="flex items-center gap-3 text-[#0a66c2] mb-3">
+                <item.icon className="w-6 h-6 text-black" />
+                {item.href ? (
+                  <a href={item.href} className="text-lg hover:underline">
+                    {item.text}
+                  </a>
+                ) : (
+                  <p className="text-lg">{item.text}</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -143,114 +191,70 @@ const Contact = () => {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 w-ful"
         >
-          {/* First & Last Name */}
+          {/* Name */}
           <input
             type="text"
-            name="first_name"
-            value={formData.first_name}
-            onChange={handleChange}
-            placeholder="First Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
-            required
-          />
-          <input
-            type="text"
-            name="last_name"
-            value={formData.last_name}
-            onChange={handleChange}
-            placeholder="Last Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            placeholder="Full Name"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2"
             required
           />
 
-          {/* Designation & Organization */}
-          <input
-            type="text"
-            name="designation"
-            value={formData.designation}
-            onChange={handleChange}
-            placeholder="Current Designation"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
-            required
-          />
-          <input
-            type="text"
-            name="organization"
-            value={formData.organization}
-            onChange={handleChange}
-            placeholder="Company / Organization Name"
-            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
-            required
-          />
-
-          {/* Doctor Checkbox */}
-          <div className="col-span-2 flex items-center gap-3 mt-2">
-            <input
-              type="checkbox"
-              name="is_doctor"
-              checked={formData.is_doctor}
-              onChange={handleChange}
-              className="w-5 h-5 accent-[#0c3633]"
-            />
-            <label className="text-gray-700 text-base">I am a Doctor</label>
-          </div>
-
-          {/* Conditional fields */}
-          {formData.is_doctor && (
-            <>
-              <input
-                type="text"
-                name="hospital_name"
-                value={formData.hospital_name}
-                onChange={handleChange}
-                placeholder="Hospital Name"
-                className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2"
-              />
-              <select
-                name="speciality"
-                value={formData.speciality}
-                onChange={handleChange}
-                className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2"
-              >
-                <option value="">Select Speciality</option>
-                <option value="Cardiology">Cardiology</option>
-                <option value="Dermatology">Dermatology</option>
-                <option value="Orthopedics">Orthopedics</option>
-                <option value="Pediatrics">Pediatrics</option>
-                <option value="General Medicine">General Medicine</option>
-              </select>
-            </>
-          )}
-
-          {/* Email & Contact */}
+          {/* Email & Phone */}
           <input
             type="email"
             name="email"
             value={formData.email}
-            onChange={handleChange}
+            onChange={handleInputChange}
             placeholder="Email Address"
             className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
           <input
-            type="text"
-            name="contact_number"
-            value={formData.contact_number}
-            onChange={handleChange}
-            placeholder="Contact Number"
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleInputChange}
+            placeholder="Phone Number"
             className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
             required
           />
 
-          {/* Image Upload */}
+          {/* Occupation Category & Position */}
+          <input
+            type="text"
+            name="occupation_category"
+            value={formData.occupation_category}
+            onChange={handleInputChange}
+            placeholder="Occupation Category"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
+            required
+          />
+          <input
+            type="text"
+            name="position"
+            value={formData.position}
+            onChange={handleInputChange}
+            placeholder="Position"
+            className="border-b border-gray-400 bg-transparent py-2 focus:outline-none col-span-2 md:col-span-1"
+            required
+          />
+
+          {/* Profile Image Upload */}
           <div className="col-span-2">
             <label className="block text-gray-700 mb-2 font-medium">
-              Upload Image
+              Upload Profile Image (Optional)
             </label>
 
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload profile image"
               className="border-2 border-dashed border-gray-400 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#0a66c2] transition-all"
-              onClick={() => document.getElementById("imageUpload").click()}
+              onClick={handleFileUploadClick}
+              onKeyPress={(e) => e.key === 'Enter' && handleFileUploadClick()}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -267,114 +271,92 @@ const Contact = () => {
                 />
               </svg>
               <p className="text-gray-700">
-                <span className="font-medium text-[#0a66c2]">Drag your file(s)</span>{" "}
-                or{" "}
-                <span className="text-[#0a66c2] font-semibold cursor-pointer">
-                  browse
-                </span>
+                <span className="font-medium text-[#0a66c2]">Click to upload</span>{" "}
+                or drag and drop
               </p>
-              <p className="text-gray-500 text-sm mt-1">Max 30 MB files are allowed</p>
+              <p className="text-gray-500 text-sm mt-1">Optional - Max 30 MB</p>
 
-              {formData.image && (
+              {imagePreviewUrl && (
                 <div className="mt-4">
                   <img
-                    src={URL.createObjectURL(formData.image)}
+                    src={imagePreviewUrl}
                     alt="Preview"
                     className="max-h-40 rounded-md object-cover"
                   />
+                  <p className="text-sm text-green-600 mt-2">Image selected</p>
                 </div>
               )}
             </div>
 
             <input
-              id="imageUpload"
+              id="profileImageUpload"
               type="file"
-              name="image"
+              name="profile_image"
               accept="image/*"
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="hidden"
             />
           </div>
 
-          {/* Consent */}
-          <div className="col-span-2 flex items-start gap-3 mt-2">
-            <input
-              type="checkbox"
-              name="consent"
-              checked={formData.consent}
-              onChange={handleChange}
-              className="w-5 h-5 accent-[#0c3633] mt-1"
-              required
-            />
-            <label className="text-gray-700 text-base">
-              I confirm that the information provided is accurate to the best of my knowledge.
-            </label>
-          </div>
-
-          {/* Submit */}
-          <div className="flex col-span-2 mt-4 justify-center md:justify-start">
+          {/* Submit Button */}
+          <div className="flex col-span-2 mt-8 justify-center md:justify-start">
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-[#0a66c2] text-white rounded-md hover:bg-[#002142] transition-all"
+              className="px-6 py-3 bg-[#0a66c2] text-white rounded-md hover:bg-[#002142] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Submitting..." : "Register Now"}
             </button>
           </div>
 
+          {/* Status Messages */}
           {successMsg && (
-            <p className="text-green-600 text-sm mt-3 col-span-2">{successMsg}</p>
+            <p className="text-green-600 text-sm mt-3 col-span-2 text-center md:text-left">
+              {successMsg}
+            </p>
           )}
           {errorMsg && (
-            <p className="text-red-600 text-sm mt-3 col-span-2">{errorMsg}</p>
+            <p className="text-red-600 text-sm mt-3 col-span-2 text-center md:text-left">
+              {errorMsg}
+            </p>
           )}
         </form>
 
-        {/* MOBILE CONTACT INFO (below form) */}
+        {/* MOBILE CONTACT INFO */}
         <div className="block md:hidden mt-14">
           <div className="mb-10">
             <h2 className="text-xl text-[#0a66c2] font-medium mb-4 font-serif">
-              Media Enquiries
+              {contactSections.media.title}
             </h2>
-            <div className="flex items-center gap-3 text-[#0a66c2]">
-              <Mail className="w-6 h-6 text-black" />
-              <a
-                href="mailto:media@expatpedia.com"
-                className="text-lg hover:underline"
-              >
-                media@expatpedia.com
-              </a>
-            </div>
+            {contactSections.media.items.map((item, index) => (
+              <div key={index} className="flex items-center gap-3 text-[#0a66c2] mb-3">
+                <item.icon className="w-6 h-6 text-black" />
+                {item.href ? (
+                  <a href={item.href} className="text-lg hover:underline">
+                    {item.text}
+                  </a>
+                ) : (
+                  <p className="text-lg">{item.text}</p>
+                )}
+              </div>
+            ))}
           </div>
-
           <div>
             <h2 className="text-xl text-[#0a66c2] font-medium mb-4 font-serif">
-              General Enquiries
+              {contactSections.general.title}
             </h2>
-
-            <div className="flex items-center gap-3 text-[#0a66c2] mb-3">
-              <Mail className="w-6 h-6 text-black" />
-              <a
-                href="mailto:info@expatpedia.com"
-                className="text-lg hover:underline"
-              >
-                info@expatpedia.com
-              </a>
-            </div>
-
-            <div className="flex items-center gap-3 text-[#0a66c2] mb-3">
-              <Phone className="w-6 h-6 text-black" />
-              <a href="tel:0477044273" className="text-lg hover:underline">
-                0477 044 273
-              </a>
-            </div>
-
-            <div className="flex items-center gap-3 text-[#0a66c2]">
-              <MapPin className="w-6 h-6 text-black" />
-              <p className="text-lg">
-                PO Box 12045, Manama, Kingdom of Bahrain
-              </p>
-            </div>
+            {contactSections.general.items.map((item, index) => (
+              <div key={index} className="flex items-center gap-3 text-[#0a66c2] mb-3">
+                <item.icon className="w-6 h-6 text-black" />
+                {item.href ? (
+                  <a href={item.href} className="text-lg hover:underline">
+                    {item.text}
+                  </a>
+                ) : (
+                  <p className="text-lg">{item.text}</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
