@@ -21,6 +21,7 @@ import Terms from "./Terms&Conditions/terms";
 import Policy from "./Terms&Conditions/policy";
 import Contact from "./contactus/contact";
 import Events from "./events/eventui";
+import BlogDetail from "./components/blogDetail";
 
 function App() {
   return (
@@ -95,7 +96,15 @@ function App() {
               </>
             }
           />
-
+          <Route
+            path="/blog/:id"
+            element={
+              <>
+                <BlogDetail />
+                <Footer />
+              </>
+            }
+          />
         </Routes>
       </div>
     </>

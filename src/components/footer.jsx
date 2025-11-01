@@ -22,23 +22,22 @@ const Footer = () => {
           <p className="text-gray-400 md:max-w-md leading-relaxed md:self-start">
             Connect, Inspire & Empower — Explore the stories and journeys of exceptional professionals in the Kingdom of Bahrain.
           </p>
-          <a
-            href="/contact"
+          <Link
+            to="/contact"
             className="md:mr-1.5 mx-auto mt-3 px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition"
           >
             Join The Directory →
-          </a>
+          </Link>
         </div>
       </div>
 
       {/* Divider */}
-      <div className="border-t border-gray-800 mt-10 pt-6">
+      <div className="border-t border-gray-800 mt-10 pt-6 md:mr-20">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row md:justify-between md:items-center gap-6">
           {/* Navigation */}
           <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm text-gray-400">
             <Link to="/" className="hover:text-white transition">Home</Link>
             <Link to="/about" className="hover:text-white transition">About Us</Link>
-            <Link to="/members" className="hover:text-white transition">Community</Link>
             <Link to="/contact" className="hover:text-white transition">Contact</Link>
           </div>
 
@@ -61,7 +60,17 @@ const Footer = () => {
 
         {/* Bottom Line */}
         <div className="max-w-7xl mx-auto px-6 md:px-10 mt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-          <p>© 2025 The Expatpedia. All rights reserved</p>
+          <p>
+            Copyright © 2025. All Rights Reserved. 
+            <a 
+              href="https://texbayinnovations.com/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="text-blue-500 hover:underline"
+            >
+              Texbay Innovations
+            </a>
+          </p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
             <Link to="/policy" className="hover:text-white transition">Privacy Policy</Link>

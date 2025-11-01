@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { logo2, ctabg } from "../assets/image";
 import { ArrowRight } from "lucide-react";
 
@@ -68,12 +69,12 @@ const CTA = () => {
         </p>
 
         {/* CTA Button */}
-        <a
-          href="/contact"
+        <Link
+          to="/contact"
           className="flex items-center gap-2 text-sm md:text-base tracking-widest uppercase bg-white text-black px-6 py-3 rounded-full font-medium hover:bg-gray-200 transition-all"
         >
           Contact Us <ArrowRight size={18} />
-        </a>
+        </Link>
       </div>
     </section>
   );

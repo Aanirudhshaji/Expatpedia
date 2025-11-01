@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 const ITEMS_PER_PAGE = 8;
 const BACKEND_DOMAIN = "https://exaptpedia.onrender.com";
 const INITIAL_FETCH_PAGE_LIMIT = 50;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Utility functions
 const normalizeNameForLetterCheck = (name = "") =>
@@ -33,26 +34,95 @@ const extractField = (member, fields) => {
     : "";
 };
 
+// Custom hook for mounted state
+const useIsMounted = () => {
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  
+  return isMountedRef;
+};
+
 // Custom hook for API calls
 const useApi = () => {
-  const fetchWithCache = useCallback(async (url) => {
-    const cacheKey = `api_cache_${btoa(url)}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    
-    if (cached) {
-      return JSON.parse(cached);
+  const isMountedRef = useIsMounted();
+  
+  // Cache cleanup function
+  const cleanupOldCache = useCallback(() => {
+    try {
+      const now = Date.now();
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('api_cache_')) {
+          try {
+            const cached = sessionStorage.getItem(key);
+            if (cached) {
+              const { timestamp } = JSON.parse(cached);
+              if (now - timestamp > CACHE_TTL) {
+                sessionStorage.removeItem(key);
+              }
+            }
+          } catch (e) {
+            // Remove invalid cache entries
+            sessionStorage.removeItem(key);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Cache cleanup failed:', error);
     }
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    // Cache for 5 minutes
-    sessionStorage.setItem(cacheKey, JSON.stringify(data));
-    return data;
   }, []);
+
+  const fetchWithCache = useCallback(async (url, signal) => {
+    const cacheKey = `api_cache_${btoa(url)}`;
+    
+    try {
+      // Check cache first
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL) {
+          return data;
+        }
+      }
+
+      // Fetch fresh data
+      const response = await fetch(url, { signal });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Cache the data with timestamp
+      if (isMountedRef.current) {
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.warn('Cache storage failed:', e);
+        }
+      }
+      
+      return data;
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        throw error;
+      }
+      return null;
+    }
+  }, [isMountedRef]);
+
+  // Cleanup old cache on initial load
+  useEffect(() => {
+    cleanupOldCache();
+  }, [cleanupOldCache]);
 
   return { fetchWithCache };
 };
@@ -113,6 +183,7 @@ const TeamMembers = () => {
   const [backgroundLoading, setBackgroundLoading] = useState(false);
 
   const { fetchWithCache } = useApi();
+  const isMountedRef = useIsMounted();
   const abortControllerRef = useRef(null);
 
   // Memoized data processing
@@ -137,21 +208,26 @@ const TeamMembers = () => {
         occupation: member.position || member.occupation || "Not specified",
         description:
           member.description ||
-          "This team member is a key part of our organization, driving growth and innovation.",
+          "",
         image: imageUrl,
       };
     }), []);
 
   // Fetch job categories
   const fetchJobCategories = useCallback(async () => {
+    if (!isMountedRef.current) return [];
+    
     try {
-      const data = await fetchWithCache(`${BACKEND_DOMAIN}/api/job-categories/`);
-      return data.results || [];
+      const controller = new AbortController();
+      const data = await fetchWithCache(`${BACKEND_DOMAIN}/api/job-categories/`, controller.signal);
+      return data?.results || [];
     } catch (error) {
-      console.error("Error fetching job categories:", error);
+      if (error.name !== 'AbortError' && isMountedRef.current) {
+        console.error("Error fetching job categories:", error);
+      }
       return [];
     }
-  }, [fetchWithCache]);
+  }, [fetchWithCache, isMountedRef]);
 
   // Build API URL based on filters
   const buildMembersUrl = useCallback((page = 1, category = "") => {
@@ -172,40 +248,55 @@ const TeamMembers = () => {
 
   // Fast fetch for first page only - immediate display
   const fetchFirstPageMembers = useCallback(async (category = "") => {
+    if (!isMountedRef.current) return [];
+    
     try {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      
       const firstUrl = buildMembersUrl(1, category);
-      const firstData = await fetchWithCache(firstUrl);
-      return processMembers(firstData.results || []);
+      const firstData = await fetchWithCache(firstUrl, controller.signal);
+      
+      if (firstData && isMountedRef.current) {
+        return processMembers(firstData.results || []);
+      }
+      return [];
     } catch (error) {
-      console.error("Error fetching first page:", error);
+      if (error.name !== 'AbortError' && isMountedRef.current) {
+        console.error("Error fetching first page:", error);
+      }
       return [];
     }
-  }, [fetchWithCache, processMembers, buildMembersUrl]);
+  }, [fetchWithCache, processMembers, buildMembersUrl, isMountedRef]);
 
   // Background fetch for remaining pages
   const fetchRemainingPages = useCallback(async (category = "", currentMembers = []) => {
-    let isMounted = true;
+    if (!isMountedRef.current) return;
+    
     let page = 2;
     let accumulated = [...currentMembers];
 
     try {
-      setBackgroundLoading(true);
+      if (isMountedRef.current) {
+        setBackgroundLoading(true);
+      }
       
       // Fetch first page again to get total count and next pages info
       const firstUrl = buildMembersUrl(1, category);
-      const firstData = await fetchWithCache(firstUrl);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       
-      if (!isMounted) return;
+      const firstData = await fetchWithCache(firstUrl, controller.signal);
+      
+      if (!firstData || !isMountedRef.current) return;
 
       let hasMorePages = firstData.next;
       
-      while (hasMorePages && page <= INITIAL_FETCH_PAGE_LIMIT) {
-        if (!isMounted) break;
-        
+      while (hasMorePages && page <= INITIAL_FETCH_PAGE_LIMIT && isMountedRef.current) {
         const pageUrl = buildMembersUrl(page, category);
-        const data = await fetchWithCache(pageUrl);
+        const data = await fetchWithCache(pageUrl, controller.signal);
         
-        if (!isMounted) break;
+        if (!data || !isMountedRef.current) break;
         
         if (!data.results?.length) break;
 
@@ -213,7 +304,7 @@ const TeamMembers = () => {
         accumulated = accumulated.concat(newMembers);
         
         // Update state with new members
-        if (isMounted) {
+        if (isMountedRef.current) {
           setTeamMembers([...accumulated]);
         }
 
@@ -223,44 +314,44 @@ const TeamMembers = () => {
       }
       
     } catch (error) {
-      if (isMounted && error.name !== 'AbortError') {
+      if (error.name !== 'AbortError' && isMountedRef.current) {
         console.error("Error in background fetch:", error);
       }
     } finally {
-      if (isMounted) {
+      if (isMountedRef.current) {
         setBackgroundLoading(false);
       }
     }
+  }, [fetchWithCache, processMembers, buildMembersUrl, isMountedRef]);
 
-    return () => { isMounted = false; };
-  }, [fetchWithCache, processMembers, buildMembersUrl]);
-
-  // Main data fetching effect with proper cleanup
+  // Consolidated data fetching effect
   useEffect(() => {
-    let isMounted = true;
-
     const fetchInitialData = async () => {
       try {
-        setLoading(true);
+        if (isMountedRef.current) {
+          setLoading(true);
+        }
 
         // Fetch job categories first
         const categories = await fetchJobCategories();
         
-        if (isMounted) {
+        if (isMountedRef.current) {
           setJobCategories(categories);
           
           // Then fetch first page members for immediate display
           const firstPageMembers = await fetchFirstPageMembers();
-          if (isMounted) {
+          if (isMountedRef.current) {
             setTeamMembers(firstPageMembers);
             setLoading(false);
             
             // Start background loading of remaining pages
-            fetchRemainingPages("", firstPageMembers);
+            if (filterType === "all" && !selectedOccupation && !selectedLetter) {
+              fetchRemainingPages("", firstPageMembers);
+            }
           }
         }
       } catch (err) {
-        if (isMounted && err.name !== 'AbortError') {
+        if (isMountedRef.current && err.name !== 'AbortError') {
           setError(err.message || "Failed to fetch data");
           setLoading(false);
         }
@@ -270,88 +361,55 @@ const TeamMembers = () => {
     fetchInitialData();
 
     return () => {
-      isMounted = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchJobCategories, fetchFirstPageMembers, fetchRemainingPages]);
+  }, [fetchJobCategories, fetchFirstPageMembers, fetchRemainingPages, filterType, selectedOccupation, selectedLetter, isMountedRef]);
 
-  // Effect to refetch when occupation filter changes
+  // Effect for filter changes
   useEffect(() => {
-    let isMounted = true;
+    const handleFilterChange = async () => {
+      if (!isMountedRef.current) return;
 
-    const fetchByOccupation = async () => {
-      if (filterType === "occupation" && selectedOccupation) {
-        try {
+      try {
+        if (filterType === "occupation" && selectedOccupation) {
           setLoading(true);
-          
-          // Fast fetch first page for immediate display
           const firstPageMembers = await fetchFirstPageMembers(selectedOccupation);
-          if (isMounted) {
+          if (isMountedRef.current) {
             setTeamMembers(firstPageMembers);
             setLoading(false);
-            
-            // Background load remaining pages
             fetchRemainingPages(selectedOccupation, firstPageMembers);
           }
-        } catch (err) {
-          if (isMounted && err.name !== 'AbortError') {
-            setError(err.message || "Failed to fetch data");
-            setLoading(false);
-          }
-        }
-      }
-    };
-
-    fetchByOccupation();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedOccupation, filterType, fetchFirstPageMembers, fetchRemainingPages]);
-
-  // Effect for letter filter (client-side only - no API call needed)
-  useEffect(() => {
-    if (filterType === "letter" && selectedLetter) {
-      // Letter filter is client-side only, no loading needed
-      setCurrentPage(1);
-    }
-  }, [filterType, selectedLetter]);
-
-  // Effect for "all" filter
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchAllMembers = async () => {
-      if (filterType === "all" && !selectedOccupation && !selectedLetter) {
-        try {
+        } else if (filterType === "all" && !selectedOccupation && !selectedLetter) {
           setLoading(true);
-          
-          // Fast fetch first page for immediate display
           const firstPageMembers = await fetchFirstPageMembers();
-          if (isMounted) {
+          if (isMountedRef.current) {
             setTeamMembers(firstPageMembers);
             setLoading(false);
-            
-            // Background load remaining pages
             fetchRemainingPages("", firstPageMembers);
           }
-        } catch (err) {
-          if (isMounted && err.name !== 'AbortError') {
-            setError(err.message || "Failed to fetch data");
+        } else if (filterType === "letter") {
+          // Client-side only filter, no API call needed
+          if (isMountedRef.current) {
             setLoading(false);
           }
+        }
+      } catch (err) {
+        if (isMountedRef.current && err.name !== 'AbortError') {
+          setError(err.message || "Failed to fetch data");
+          setLoading(false);
         }
       }
     };
 
-    fetchAllMembers();
+    handleFilterChange();
+  }, [filterType, selectedOccupation, selectedLetter, fetchFirstPageMembers, fetchRemainingPages, isMountedRef]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [filterType, selectedOccupation, selectedLetter, fetchFirstPageMembers, fetchRemainingPages]);
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterType, selectedLetter, sortOrder, selectedOccupation]);
 
   // Memoized filtered members with better performance
   const filteredMembers = useMemo(() => {
@@ -397,11 +455,6 @@ const TeamMembers = () => {
       paginatedMembers: filteredMembers.slice(startIndex, endIndex)
     };
   }, [filteredMembers, currentPage]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterType, selectedLetter, sortOrder, selectedOccupation]);
 
   // Memoized event handlers with proper dependencies
   const handleFilterChange = useCallback((type, value) => {
@@ -593,7 +646,7 @@ const TeamMembers = () => {
   );
 };
 
-// Optimized sub-components (keep the same as before)
+// Optimized sub-components
 const FiltersSection = React.memo(({
   filterType,
   selectedOccupation,
@@ -763,7 +816,6 @@ const ResultsCount = React.memo(({ currentCount, totalCount, originalCount, jobC
   </div>
 ));
 
-// Keep the rest of the components exactly the same (MembersGrid, MemberCard, Pagination, PaginationButton)
 const MembersGrid = React.memo(({ members, currentPage, itemsPerPage, flippedCards, onToggleFlip, getMemberKey, onClearFilters }) => {
   if (members.length === 0) {
     return (
@@ -800,7 +852,20 @@ const MemberCard = React.memo(({ member, isFlipped, onToggleFlip }) => {
   const hasEmail = isValidEmail(member.email);
   const hasPhone = isValidPhone(member.phone);
   const [imgError, setImgError] = useState(false);
+  const isMountedRef = useIsMounted();
   const placeholderImage = "https://via.placeholder.com/600x400?text=No+Image";
+
+  const handleImageError = useCallback(() => {
+    if (isMountedRef.current) {
+      setImgError(true);
+    }
+  }, [isMountedRef]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup function for image error state
+    };
+  }, []);
 
   return (
     <div 
@@ -824,7 +889,7 @@ const MemberCard = React.memo(({ member, isFlipped, onToggleFlip }) => {
             alt={member.name} 
             loading="lazy" 
             className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
+            onError={handleImageError}
           />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6 text-white">
             <h3 className="text-sm sm:text-lg font-semibold">{member.name || "Unknown Name"}</h3>

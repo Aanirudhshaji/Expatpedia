@@ -10,7 +10,7 @@ const AboutSection = () => {
       id="about"
       className="w-full bg-gray-50 py-20 px-6 md:px-10 lg:px-20"
     >
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-14 items-start">
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 md:gap-14 items-start">
         {/* LEFT SECTION */}
         <div>
           <p className="text-[#0a66c2] text-sm font-semibold tracking-wide text-center md:text-left uppercase mb-2">
@@ -38,7 +38,7 @@ const AboutSection = () => {
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="bg-[#e8f0f8] p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full">
+        <div className="bg-[#e8f0f8] p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full ">
           <p className="text-[#0a66c2] text-base md:text-lg leading-relaxed text-justify hyphens-auto mb-6">
             Our vision is to document and celebrate the journeys of outstanding
             expatriates while serving as a trusted reference for organizations,

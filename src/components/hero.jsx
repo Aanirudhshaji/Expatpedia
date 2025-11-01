@@ -1,4 +1,5 @@
 import React from "react";
+import { useParams, Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 const Hero = () => {
   return (
@@ -25,12 +26,12 @@ const Hero = () => {
     Celebrating the remarkable contributions of expatriates who inspire progress,
     unity, and innovation across the Kingdom.
   </p>
-        <a
-          href="/contact"
+        <Link
+          to="/contact"
           className="backdrop-blur-md bg-white/10 border border-white/30 text-white font-semibold md:py-2 md:px-6 px-5 py-1.5 mt-2 rounded-full text-lg shadow-md hover:bg-white/20 transition duration-300"
         >
           Join Now
-        </a>
+        </Link>
       </div>
 
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
