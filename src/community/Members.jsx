@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  memo,
+} from "react";
 
-// Constants
+// ✅ Constants
 const BACKEND_DOMAIN = "https://exaptpedia.onrender.com";
 
-// Helper to build query strings
+// ✅ Helper: Build query string
 const buildQueryString = (paramsObj) => {
   const params = new URLSearchParams();
   Object.entries(paramsObj).forEach(([key, value]) => {
@@ -13,7 +19,177 @@ const buildQueryString = (paramsObj) => {
   return params.toString();
 };
 
-// Main Component
+// ✅ Helper: Pagination range (pure function)
+const getPaginationRange = (page, totalPages) => {
+  const delta = 2;
+  const range = [];
+  const rangeWithDots = [];
+  let l;
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - delta && i <= page + delta))
+      range.push(i);
+  }
+  for (let i of range) {
+    if (l) {
+      if (i - l === 2) rangeWithDots.push(l + 1);
+      else if (i - l !== 1) rangeWithDots.push("...");
+    }
+    rangeWithDots.push(i);
+    l = i;
+  }
+  return rangeWithDots;
+};
+
+// ✅ Memoized MemberCard with Elite Highlight
+const MemberCard = memo(({ member, flipped, onFlip }) => {
+  const isElite =
+  member.elite === true ||
+  member.elite === "true" ||
+  member.elite === 1 ||
+  member.elite === "1" ||
+  member.is_elite === true ||
+  member.is_elite === "true" ||
+  member.is_elite === 1 ||
+  member.is_elite === "1" ||
+  member.category?.toLowerCase() === "elite" ||
+  member.occupation_category?.name?.toLowerCase()?.includes("elite") ||
+  member.elite_tag === "elite";
+
+
+  return (
+    <div
+      key={member.id}
+      onClick={() => onFlip(member.id)}
+      className={`group relative w-full h-[280px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective transition-transform duration-300 ${
+        isElite ? "elite-card hover:scale-[1.03]" : "hover:scale-[1.02]"
+      }`}
+    >
+      {/* 🔥 Glowing Border for Elite */}
+      {isElite && (
+        <div className="absolute inset-0 rounded-3xl border-[3px] border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.6)] pointer-events-none z-20 animate-[eliteGlow_2.5s_ease-in-out_infinite]"></div>
+      )}
+
+      {/* 🌟 Elite Badge */}
+      {isElite && (
+        <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-lg z-30">
+          🌟 Elite
+        </div>
+      )}
+
+      <div
+        className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d ${
+          flipped ? "rotate-y-180" : ""
+        }`}
+      >
+        {/* Front */}
+        <div
+          className={`absolute inset-0 rounded-3xl overflow-hidden shadow-lg ${
+            isElite ? "bg-gradient-to-br from-yellow-50 to-white" : "bg-white"
+          }`}
+          style={{ backfaceVisibility: "hidden" }}
+        >
+          <img
+            src={
+              member._img || "https://via.placeholder.com/600x400?text=No+Image"
+            }
+            alt={member.name}
+            className={`w-full h-full object-cover ${
+              isElite ? "brightness-105 saturate-125" : ""
+            }`}
+          />
+          <div
+            className={`absolute bottom-0 left-0 right-0 ${
+              isElite
+                ? "bg-gradient-to-t from-yellow-800/80 to-transparent"
+                : "bg-gradient-to-t from-black/70 to-transparent"
+            } p-4 sm:p-6 text-white`}
+          >
+            <h3 className="text-sm sm:text-lg font-semibold">{member.name}</h3>
+            <p className="text-xs sm:text-sm text-gray-200">{member.position}</p>
+          </div>
+        </div>
+
+        {/* Back */}
+        <div
+          className={`absolute inset-0 rounded-3xl ${
+            isElite
+              ? "bg-gradient-to-br from-yellow-500 to-yellow-700"
+              : "bg-blue-600"
+          } text-white px-4 sm:px-6 py-6 flex flex-col justify-between`}
+          style={{
+            transform: "rotateY(180deg)",
+            backfaceVisibility: "hidden",
+          }}
+        >
+          <div>
+            <h3 className="text-xl font-semibold mb-2">{member.name}</h3>
+            <p className="text-sm opacity-90 mb-4">{member.position}</p>
+            <p className="text-sm opacity-90">
+              {member.occupation_category?.name}
+            </p>
+          </div>
+
+          {(member.email || member.phone) && (
+            <div className="text-center mt-8">
+              <p className="text-sm opacity-80 mb-3">Get in touch</p>
+              <div className="flex justify-center gap-5">
+                {member.email && (
+                  <a
+                    href={`mailto:${member.email}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
+                    title="Send Email"
+                    aria-label="Email"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-5 h-5"
+                    >
+                      <rect x="2.5" y="4" width="19" height="16" rx="2.5" ry="2.5" />
+                      <polyline points="3,6.5 12,13 21,6.5" />
+                    </svg>
+                  </a>
+                )}
+                {member.phone && (
+                  <a
+                    href={`tel:${member.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
+                    title="Call"
+                    aria-label="Phone"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      className="w-5 h-5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.25 6.75c0 8.284 6.716 15 15 15a2.25 2.25 0 0 0 2.25-2.25v-1.286a1.125 1.125 0 0 0-.852-1.09l-3.105-.776a1.125 1.125 0 0 0-1.173.417l-.97 1.293a11.954 11.954 0 0 1-5.297-5.297l1.293-.97a1.125 1.125 0 0 0 .417-1.173l-.776-3.105a1.125 1.125 0 0 0-1.09-.852H4.5A2.25 2.25 0 0 0 2.25 6.75z"
+                      />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ✅ Main Component
 const TeamMembers = () => {
   const [members, setMembers] = useState([]);
   const [jobCategories, setJobCategories] = useState([]);
@@ -28,55 +204,72 @@ const TeamMembers = () => {
   const [filterType, setFilterType] = useState("all");
   const [flippedCards, setFlippedCards] = useState({});
   const [isEliteMode, setIsEliteMode] = useState(false);
-  const abortRef = useRef(null);
 
-  // Fetch job categories
+  const abortRefs = useRef({ members: null, categories: null });
+
+  // ✅ Fetch categories (with caching)
   const fetchCategories = useCallback(async () => {
+    const cached = localStorage.getItem("jobCategories");
+    if (cached) {
+      setJobCategories(JSON.parse(cached));
+      return;
+    }
+
     try {
-      const res = await fetch(`${BACKEND_DOMAIN}/api/job-categories/`);
+      abortRefs.current.categories?.abort();
+      abortRefs.current.categories = new AbortController();
+
+      const res = await fetch(`${BACKEND_DOMAIN}/api/job-categories/`, {
+        signal: abortRefs.current.categories.signal,
+      });
       const data = await res.json();
-      setJobCategories(data.results || data || []);
+      const cats = data.results || data || [];
+      setJobCategories(cats);
+      localStorage.setItem("jobCategories", JSON.stringify(cats));
     } catch (err) {
       console.error("Failed to load categories:", err);
     }
   }, []);
 
-  // Fetch members (backend-driven)
+  // ✅ Fetch members (debounced + abortable)
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     setError(null);
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+
+    abortRefs.current.members?.abort();
+    abortRefs.current.members = new AbortController();
 
     const params = {
       page,
-      page_size: 8, // 8 members per page
+      page_size: 8,
       search: searchQuery || undefined,
       category:
         !isEliteMode && filterType === "occupation" ? selectedCategory : undefined,
       starts_with:
         !isEliteMode && filterType === "letter" ? selectedLetter : undefined,
       sort: sortOrder === "asc" ? "name_asc" : "name_desc",
-      elite: isEliteMode ? "true" : undefined, // Elite filter
+      elite: isEliteMode ? "true" : undefined,
     };
 
     const query = buildQueryString(params);
     const url = `${BACKEND_DOMAIN}/api/members/?${query}`;
 
     try {
-      const res = await fetch(url, { signal: abortRef.current.signal });
+      const res = await fetch(url, { signal: abortRefs.current.members.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      // Normalize backend response
       const normalized = (data.results || data || []).map((m) => {
+        // Fallback: mark first few results as elite when viewing elite page
+        if (isEliteMode) {
+          m.elite = true;
+        }
         const raw = m.profile_image || "";
-        const absoluteImg =
-          !raw
-            ? null
-            : raw.startsWith("http")
-            ? raw
-            : `${BACKEND_DOMAIN}${raw.startsWith("/") ? "" : "/"}${raw}`;
+        const absoluteImg = !raw
+          ? null
+          : raw.startsWith("http")
+          ? raw
+          : `${BACKEND_DOMAIN}${raw.startsWith("/") ? "" : "/"}${raw}`;
         return {
           ...m,
           _img: absoluteImg,
@@ -102,15 +295,19 @@ const TeamMembers = () => {
     isEliteMode,
   ]);
 
+  // ✅ Debounce fetchMembers
+  useEffect(() => {
+    const timeout = setTimeout(() => fetchMembers(), 400);
+    return () => clearTimeout(timeout);
+  }, [fetchMembers]);
+
+  // ✅ Fetch categories on mount
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
-
-  const handleFilterChange = (type, value) => {
+  // ✅ Handlers
+  const handleFilterChange = useCallback((type, value) => {
     setFilterType(type);
     setPage(1);
     if (type === "occupation") {
@@ -125,42 +322,23 @@ const TeamMembers = () => {
       setSelectedCategory("");
       setSelectedLetter("");
     }
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilterType("all");
     setSelectedCategory("");
     setSelectedLetter("");
     setSearchQuery("");
     setIsEliteMode(false);
     setPage(1);
-  };
+  }, []);
 
   const toggleFlip = useCallback((id) => {
     setFlippedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  const getPaginationRange = () => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
-    let l;
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || (i >= page - delta && i <= page + delta))
-        range.push(i);
-    }
-    for (let i of range) {
-      if (l) {
-        if (i - l === 2) rangeWithDots.push(l + 1);
-        else if (i - l !== 1) rangeWithDots.push("...");
-      }
-      rangeWithDots.push(i);
-      l = i;
-    }
-    return rangeWithDots;
-  };
-
-  if (loading) {
+  // ✅ UI States
+  if (loading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-blue-600 mb-4"></div>
@@ -169,9 +347,8 @@ const TeamMembers = () => {
         </p>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white border border-red-100 rounded-2xl shadow-lg p-8 max-w-md text-center">
@@ -186,8 +363,8 @@ const TeamMembers = () => {
         </div>
       </div>
     );
-  }
 
+  // ✅ Main Layout
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-6 pb-24 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
@@ -202,11 +379,10 @@ const TeamMembers = () => {
           </p>
         </div>
 
-        {/* Filters Section */}
+        {/* Filters */}
         <div className="mb-10">
           <div className="hidden md:flex items-center gap-3 overflow-x-auto pb-2">
             <div className="flex items-center gap-2">
-              {/* All Button */}
               <button
                 onClick={() => {
                   setIsEliteMode(false);
@@ -221,7 +397,6 @@ const TeamMembers = () => {
                 All
               </button>
 
-              {/* 🌟 Elite Members Button */}
               <button
                 onClick={() => {
                   setIsEliteMode(true);
@@ -300,116 +475,12 @@ const TeamMembers = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {members.length > 0 ? (
             members.map((member) => (
-              <div
+              <MemberCard
                 key={member.id}
-                className="group relative w-full h-[280px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective"
-                onClick={() => toggleFlip(member.id)}
-              >
-                <div
-                  className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d ${
-                    flippedCards[member.id] ? "rotate-y-180" : ""
-                  }`}
-                >
-                  {/* Front */}
-                  <div
-                    className="absolute inset-0 rounded-3xl overflow-hidden shadow-lg bg-white"
-                    style={{ backfaceVisibility: "hidden" }}
-                  >
-                    <img
-                      src={
-                        member._img ||
-                        "https://via.placeholder.com/600x400?text=No+Image"
-                      }
-                      alt={member.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6 text-white">
-                      <h3 className="text-sm sm:text-lg font-semibold">
-                        {member.name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-200">
-                        {member.position}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Back */}
-                  <div
-                    className="absolute inset-0 rounded-3xl bg-blue-600 text-white px-4 sm:px-6 py-6 flex flex-col justify-between"
-                    style={{
-                      transform: "rotateY(180deg)",
-                      backfaceVisibility: "hidden",
-                    }}
-                  >
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        {member.name}
-                      </h3>
-                      <p className="text-sm opacity-90 mb-4">
-                        {member.position}
-                      </p>
-                      <p className="text-sm opacity-90">
-                        {member.occupation_category?.name}
-                      </p>
-                    </div>
-
-                    {/* Contact Section */}
-                    {(member.email || member.phone) && (
-                      <div className="text-center mt-8">
-                        <p className="text-sm opacity-80 mb-3">Get in touch</p>
-                        <div className="flex justify-center gap-5">
-                          {member.email && (
-                            <a
-                              href={`mailto:${member.email}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
-                              title="Send Email"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={2}
-                                stroke="currentColor"
-                                className="w-5 h-5"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M21.75 8.25v7.5a2.25 2.25 0 0 1-2.25 2.25H4.5a2.25 2.25 0 0 1-2.25-2.25v-7.5m19.5 0L12 13.5 2.25 8.25"
-                                />
-                              </svg>
-                            </a>
-                          )}
-                          {member.phone && (
-                            <a
-                              href={`tel:${member.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
-                              title="Call"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={2}
-                                stroke="currentColor"
-                                className="w-5 h-5"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M2.25 6.75c0 8.284 6.716 15 15 15a2.25 2.25 0 0 0 2.25-2.25v-1.286a1.125 1.125 0 0 0-.852-1.09l-3.105-.776a1.125 1.125 0 0 0-1.173.417l-.97 1.293a11.954 11.954 0 0 1-5.297-5.297l1.293-.97a1.125 1.125 0 0 0 .417-1.173l-.776-3.105a1.125 1.125 0 0 0-1.09-.852H4.5A2.25 2.25 0 0 0 2.25 6.75z"
-                                />
-                              </svg>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                member={member}
+                flipped={!!flippedCards[member.id]}
+                onFlip={toggleFlip}
+              />
             ))
           ) : (
             <div className="col-span-full text-center text-gray-500 py-20">
@@ -434,7 +505,7 @@ const TeamMembers = () => {
                 Prev
               </button>
 
-              {getPaginationRange().map((num, idx) =>
+              {getPaginationRange(page, totalPages).map((num, idx) =>
                 num === "..." ? (
                   <span
                     key={`dots-${idx}`}

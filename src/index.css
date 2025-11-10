@@ -15,3 +15,55 @@ html {
 .backface-hidden {
   backface-visibility: hidden;
 }
+
+/* Softer, elegant elite glow */
+@keyframes softEliteShimmer {
+  0% {
+    box-shadow: 0 0 6px rgba(250, 204, 21, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 6px rgba(250, 204, 21, 0.3);
+  }
+}
+
+.elite-card {
+  border: 2px solid rgba(250, 204, 21, 0.6);
+  border-radius: 1.5rem;
+  animation: softEliteShimmer 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.elite-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(250, 204, 21, 0.3);
+}
+
+/* Soft reflection overlay */
+.elite-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
