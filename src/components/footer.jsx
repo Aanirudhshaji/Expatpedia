@@ -63,12 +63,12 @@ const Footer = () => {
           <p>
             Copyright © 2025. All Rights Reserved. 
             <a 
-              href="https://texbayinnovations.com/" 
+              href="" 
               target="_blank" 
               rel="noopener noreferrer" 
               class="text-blue-500 hover:underline"
             >
-              Texbay Innovations
+              SPAC INTL
             </a>
           </p>
           <div className="flex gap-4 mt-2 md:mt-0">
