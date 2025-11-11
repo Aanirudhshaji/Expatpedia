@@ -43,18 +43,17 @@ const getPaginationRange = (page, totalPages) => {
 // ✅ Memoized MemberCard with Elite Highlight
 const MemberCard = memo(({ member, flipped, onFlip }) => {
   const isElite =
-  member.elite === true ||
-  member.elite === "true" ||
-  member.elite === 1 ||
-  member.elite === "1" ||
-  member.is_elite === true ||
-  member.is_elite === "true" ||
-  member.is_elite === 1 ||
-  member.is_elite === "1" ||
-  member.category?.toLowerCase() === "elite" ||
-  member.occupation_category?.name?.toLowerCase()?.includes("elite") ||
-  member.elite_tag === "elite";
-
+    member.elite === true ||
+    member.elite === "true" ||
+    member.elite === 1 ||
+    member.elite === "1" ||
+    member.is_elite === true ||
+    member.is_elite === "true" ||
+    member.is_elite === 1 ||
+    member.is_elite === "1" ||
+    member.category?.toLowerCase() === "elite" ||
+    member.occupation_category?.name?.toLowerCase()?.includes("elite") ||
+    member.elite_tag === "elite";
 
   return (
     <div
@@ -64,15 +63,11 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
         isElite ? "elite-card hover:scale-[1.03]" : "hover:scale-[1.02]"
       }`}
     >
-      {/* 🔥 Glowing Border for Elite */}
-      {isElite && (
-        <div className="absolute inset-0 rounded-3xl border-[3px] border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.6)] pointer-events-none z-20 animate-[eliteGlow_2.5s_ease-in-out_infinite]"></div>
-      )}
 
       {/* 🌟 Elite Badge */}
       {isElite && (
         <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-lg z-30">
-          🌟 Elite
+          🌟 Elite Members
         </div>
       )}
 
@@ -84,7 +79,7 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
         {/* Front */}
         <div
           className={`absolute inset-0 rounded-3xl overflow-hidden shadow-lg ${
-            isElite ? "bg-gradient-to-br from-yellow-50 to-white" : "bg-white"
+            isElite ? "bg-gradient-to-br from-white" : "bg-white"
           }`}
           style={{ backfaceVisibility: "hidden" }}
         >
@@ -100,7 +95,7 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
           <div
             className={`absolute bottom-0 left-0 right-0 ${
               isElite
-                ? "bg-gradient-to-t from-yellow-800/80 to-transparent"
+                ? "bg-gradient-to-t from-black/70 to-transparent"
                 : "bg-gradient-to-t from-black/70 to-transparent"
             } p-4 sm:p-6 text-white`}
           >
@@ -113,7 +108,7 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
         <div
           className={`absolute inset-0 rounded-3xl ${
             isElite
-              ? "bg-gradient-to-br from-yellow-500 to-yellow-700"
+              ? "bg-gradient-to-br from-blue-500 to-blue-700"
               : "bg-blue-600"
           } text-white px-4 sm:px-6 py-6 flex flex-col justify-between`}
           style={{
@@ -231,7 +226,7 @@ const TeamMembers = () => {
     }
   }, []);
 
-  // ✅ Fetch members (debounced + abortable)
+  // ✅ Fetch members (with elite handling)
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -260,26 +255,44 @@ const TeamMembers = () => {
       const data = await res.json();
 
       const normalized = (data.results || data || []).map((m) => {
-        // Fallback: mark first few results as elite when viewing elite page
-        if (isEliteMode) {
-          m.elite = true;
-        }
+        // ✅ Always detect elite members (works for both All & Elite filters)
+        const eliteFlag =
+          m.elite_member === true ||
+          m.elite_member === "true" ||
+          m.elite === true ||
+          m.is_elite === true ||
+          m.category?.toLowerCase() === "elite" ||
+          m.occupation_category?.name?.toLowerCase()?.includes("elite");
+
         const raw = m.profile_image || "";
         const absoluteImg = !raw
           ? null
           : raw.startsWith("http")
           ? raw
           : `${BACKEND_DOMAIN}${raw.startsWith("/") ? "" : "/"}${raw}`;
+
         return {
           ...m,
           _img: absoluteImg,
+          elite: eliteFlag,
           email: m.email || "",
           phone: m.phone || "",
         };
       });
 
-      setMembers(normalized);
-      setTotalPages(Math.ceil(data.count / 8) || 1);
+      // ✅ Filter elite members only in Elite mode (frontend filter)
+      const filteredMembers = isEliteMode
+        ? normalized.filter((m) => m.elite)
+        : normalized;
+
+      setMembers(filteredMembers);
+
+      // ✅ Fix pagination for elite filtering
+      setTotalPages(
+        Math.ceil(
+          (isEliteMode ? filteredMembers.length : data.count || filteredMembers.length) / 8
+        ) || 1
+      );
     } catch (err) {
       if (err.name !== "AbortError") setError("Failed to fetch members.");
     } finally {
@@ -407,8 +420,8 @@ const TeamMembers = () => {
                 }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                   isEliteMode
-                    ? "bg-gradient-to-r from-yellow-400 to-yellow-600 text-white shadow-md"
-                    : "bg-gray-200 text-gray-700 hover:bg-yellow-100"
+                    ? "bg-gradient-to-r bg-blue-600 text-white shadow-md"
+                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
                 }`}
               >
                 🌟 Elite Members
