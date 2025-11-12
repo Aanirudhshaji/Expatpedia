@@ -5,6 +5,8 @@ import React, {
   useRef,
   memo,
 } from "react";
+import { Mail, Phone } from "lucide-react";
+
 
 // ✅ Constants
 const BACKEND_DOMAIN = "https://exaptpedia.onrender.com";
@@ -59,11 +61,10 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
     <div
       key={member.id}
       onClick={() => onFlip(member.id)}
-      className={`group relative w-full h-[280px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective transition-transform duration-300 ${
+      className={`group relative w-full h-[400px] sm:h-[380px] lg:h-[420px] cursor-pointer perspective transition-transform duration-300 ${
         isElite ? "elite-card hover:scale-[1.03]" : "hover:scale-[1.02]"
       }`}
     >
-
       {/* 🌟 Elite Badge */}
       {isElite && (
         <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-lg z-30">
@@ -92,13 +93,7 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
               isElite ? "brightness-105 saturate-125" : ""
             }`}
           />
-          <div
-            className={`absolute bottom-0 left-0 right-0 ${
-              isElite
-                ? "bg-gradient-to-t from-black/70 to-transparent"
-                : "bg-gradient-to-t from-black/70 to-transparent"
-            } p-4 sm:p-6 text-white`}
-          >
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6 text-white">
             <h3 className="text-sm sm:text-lg font-semibold">{member.name}</h3>
             <p className="text-xs sm:text-sm text-gray-200">{member.position}</p>
           </div>
@@ -134,21 +129,8 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
                     onClick={(e) => e.stopPropagation()}
                     className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
                     title="Send Email"
-                    aria-label="Email"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-5 h-5"
-                    >
-                      <rect x="2.5" y="4" width="19" height="16" rx="2.5" ry="2.5" />
-                      <polyline points="3,6.5 12,13 21,6.5" />
-                    </svg>
+                    <Mail className="w-5 h-5 text-white" />
                   </a>
                 )}
                 {member.phone && (
@@ -157,22 +139,8 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
                     onClick={(e) => e.stopPropagation()}
                     className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all duration-300 flex items-center justify-center"
                     title="Call"
-                    aria-label="Phone"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2}
-                      stroke="currentColor"
-                      className="w-5 h-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.25 6.75c0 8.284 6.716 15 15 15a2.25 2.25 0 0 0 2.25-2.25v-1.286a1.125 1.125 0 0 0-.852-1.09l-3.105-.776a1.125 1.125 0 0 0-1.173.417l-.97 1.293a11.954 11.954 0 0 1-5.297-5.297l1.293-.97a1.125 1.125 0 0 0 .417-1.173l-.776-3.105a1.125 1.125 0 0 0-1.09-.852H4.5A2.25 2.25 0 0 0 2.25 6.75z"
-                      />
-                    </svg>
+                    <Phone className="w-5 h-5 text-white" />
                   </a>
                 )}
               </div>
@@ -255,7 +223,6 @@ const TeamMembers = () => {
       const data = await res.json();
 
       const normalized = (data.results || data || []).map((m) => {
-        // ✅ Always detect elite members (works for both All & Elite filters)
         const eliteFlag =
           m.elite_member === true ||
           m.elite_member === "true" ||
@@ -280,14 +247,11 @@ const TeamMembers = () => {
         };
       });
 
-      // ✅ Filter elite members only in Elite mode (frontend filter)
       const filteredMembers = isEliteMode
         ? normalized.filter((m) => m.elite)
         : normalized;
 
       setMembers(filteredMembers);
-
-      // ✅ Fix pagination for elite filtering
       setTotalPages(
         Math.ceil(
           (isEliteMode ? filteredMembers.length : data.count || filteredMembers.length) / 8
@@ -308,13 +272,12 @@ const TeamMembers = () => {
     isEliteMode,
   ]);
 
-  // ✅ Debounce fetchMembers
+  // ✅ Effects
   useEffect(() => {
     const timeout = setTimeout(() => fetchMembers(), 400);
     return () => clearTimeout(timeout);
   }, [fetchMembers]);
 
-  // ✅ Fetch categories on mount
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
@@ -350,7 +313,7 @@ const TeamMembers = () => {
     setFlippedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  // ✅ UI States
+  // ✅ Loading/Error
   if (loading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -379,37 +342,55 @@ const TeamMembers = () => {
 
   // ✅ Main Layout
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-6 pb-24 px-4 sm:px-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-700 mb-6">
-            Meet Our Members
-          </h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Driven by creativity and collaboration, <br /> our members deliver
-            tailored solutions to bring your ideas to life.
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-0 pb-24">
+      {/* 🎥 Full-Stretch Background Video Header */}
+      <section className="relative w-full min-h-[450px] md:min-h-[620px] flex flex-col justify-end items-center overflow-hidden mb-16">
+        {/* Background Video */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover z-0"
+          autoPlay
+          muted
+          loop
+          playsInline
+        >
+          <source
+            src="https://res.cloudinary.com/demeflwme/video/upload/v1761030149/timelapse-of-a-dramatic-sunset-over-almuharraq-isl-2025-08-28-23-15-34-utc_ilctbl.mp4"
+            type="video/mp4"
+          />
+        </video>
 
-        {/* Filters */}
-        <div className="mb-10">
-          <div className="hidden md:flex items-center gap-3 overflow-x-auto pb-2">
-            <div className="flex items-center gap-2">
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60 z-10"></div>
+
+        {/* Content */}
+        <div className="relative z-20 w-full max-w-7xl mx-auto px-6 pt-32 md:pt-40 pb-28 text-center text-white">
+          <h1 className="text-white font-medium leading-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl">
+            Honouring Expatriate <br className="hidden sm:block" /> Excellence in Bahrain
+          </h1>
+          <p className="text-gray-200 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            Celebrating the remarkable contributions of expatriates who inspire progress,
+            unity, and innovation across the Kingdom.
+          </p>
+
+          {/* ✅ Filters Section (Updated) */}
+          <div className="relative w-full mt-6 px-4">
+            <div className="w-[90%] max-w-5xl mx-auto rounded-2xl bg-white/20 backdrop-blur-md border border-white/10 shadow-lg flex flex-wrap justify-center items-center gap-3 sm:gap-4 py-3 sm:py-4">
+              {/* All */}
               <button
                 onClick={() => {
                   setIsEliteMode(false);
                   handleFilterChange("all", "");
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
+                className={`w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition ${
                   !isEliteMode && filterType === "all"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-white/20 hover:bg-white/30 text-white"
                 }`}
               >
                 All
               </button>
 
+              {/* Elite */}
               <button
                 onClick={() => {
                   setIsEliteMode(true);
@@ -418,46 +399,44 @@ const TeamMembers = () => {
                   setSelectedLetter("");
                   setPage(1);
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                className={`w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition ${
                   isEliteMode
-                    ? "bg-gradient-to-r bg-blue-600 text-white shadow-md"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    ? "bg-gradient-to-r from-yellow-400 to-yellow-600 text-white shadow-lg"
+                    : "bg-white/20 hover:bg-white/30 text-white"
                 }`}
               >
                 🌟 Elite Members
               </button>
 
-              {/* Category Filter */}
+              {/* Category */}
               <select
                 value={selectedCategory}
                 onChange={(e) => handleFilterChange("occupation", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 text-gray-700 text-sm w-48"
+                className="w-[90%] sm:w-auto px-3 py-2 rounded-lg border border-white/40 bg-white/10 text-white focus:ring-2 focus:ring-yellow-400 text-sm"
               >
                 <option value="">Job Category</option>
                 {jobCategories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
+                  <option key={cat.id} value={cat.name} className="text-gray-900">
                     {cat.name}
                   </option>
                 ))}
               </select>
 
-              {/* A–Z Filter */}
+              {/* A–Z */}
               <select
                 value={selectedLetter}
                 onChange={(e) => handleFilterChange("letter", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 text-gray-700 text-sm w-20"
+                className="w-[90%] sm:w-auto px-3 py-2 rounded-lg border border-white/40 bg-white/10 text-white focus:ring-2 focus:ring-yellow-400 text-sm"
               >
                 <option value="">A–Z</option>
                 {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => (
-                  <option key={l} value={l}>
+                  <option key={l} value={l} className="text-gray-900">
                     {l}
                   </option>
                 ))}
               </select>
-            </div>
 
-            {/* Search + Sort + Clear */}
-            <div className="ml-auto flex items-center gap-2">
+              {/* Search */}
               <input
                 type="text"
                 placeholder="Search by name or occupation..."
@@ -466,25 +445,31 @@ const TeamMembers = () => {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="border border-gray-300 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-blue-600 text-gray-700 text-sm"
+                className="w-[90%] sm:w-auto border border-white/40 rounded-lg px-4 py-2 bg-white/10 text-white placeholder-white/70 focus:ring-2 focus:ring-yellow-400 text-sm"
               />
+
+              {/* Sort */}
               <button
                 onClick={() => setSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0a66c2] text-white hover:bg-[#88c2fb]"
+                className="w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600"
               >
                 Sort {sortOrder === "asc" ? "A–Z" : "Z–A"}
               </button>
+
+              {/* Clear */}
               <button
                 onClick={clearAllFilters}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-500 text-white hover:bg-gray-600"
+                className="w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-700"
               >
                 Clear All
               </button>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Members Grid */}
+      {/* Members Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {members.length > 0 ? (
             members.map((member) => (

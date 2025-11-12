@@ -7,7 +7,6 @@ import Footer from "./components/footer";
 import ScrollToTop from "./components/ScrollToTop";
 
 // Page Sections
-import Hero from "./components/hero";
 import AboutSection from "./components/about";
 import CTA from "./components/cta";
 import ImageScroll from "./components/imagescroll";
@@ -36,9 +35,8 @@ function App() {
             path="/"
             element={
               <>
-                <Hero />
-                <AboutSection />
                 <Members />
+                <AboutSection />
                 <ImageScroll />
                 <CTA />
                 <FAQ />
