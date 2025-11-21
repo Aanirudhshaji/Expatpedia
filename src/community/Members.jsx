@@ -7,11 +7,8 @@ import React, {
 } from "react";
 import { Mail, Phone } from "lucide-react";
 
-
-// ✅ Constants
 const BACKEND_DOMAIN = "https://exaptpedia.onrender.com";
 
-// ✅ Helper: Build query string
 const buildQueryString = (paramsObj) => {
   const params = new URLSearchParams();
   Object.entries(paramsObj).forEach(([key, value]) => {
@@ -21,7 +18,6 @@ const buildQueryString = (paramsObj) => {
   return params.toString();
 };
 
-// ✅ Helper: Pagination range (pure function)
 const getPaginationRange = (page, totalPages) => {
   const delta = 2;
   const range = [];
@@ -42,7 +38,6 @@ const getPaginationRange = (page, totalPages) => {
   return rangeWithDots;
 };
 
-// ✅ Memoized MemberCard with Elite Highlight
 const MemberCard = memo(({ member, flipped, onFlip }) => {
   const isElite =
     member.elite === true ||
@@ -65,7 +60,6 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
         isElite ? "elite-card hover:scale-[1.03]" : "hover:scale-[1.02]"
       }`}
     >
-      {/* 🌟 Elite Badge */}
       {isElite && (
         <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-lg z-30">
           🌟 Elite Members
@@ -77,7 +71,6 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
           flipped ? "rotate-y-180" : ""
         }`}
       >
-        {/* Front */}
         <div
           className={`absolute inset-0 rounded-3xl overflow-hidden shadow-lg ${
             isElite ? "bg-gradient-to-br from-white" : "bg-white"
@@ -99,7 +92,6 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
           </div>
         </div>
 
-        {/* Back */}
         <div
           className={`absolute inset-0 rounded-3xl ${
             isElite
@@ -152,7 +144,6 @@ const MemberCard = memo(({ member, flipped, onFlip }) => {
   );
 });
 
-// ✅ Main Component
 const TeamMembers = () => {
   const [members, setMembers] = useState([]);
   const [jobCategories, setJobCategories] = useState([]);
@@ -160,7 +151,10 @@ const TeamMembers = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // 🔥 NEW
+
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedLetter, setSelectedLetter] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -170,7 +164,6 @@ const TeamMembers = () => {
 
   const abortRefs = useRef({ members: null, categories: null });
 
-  // ✅ Fetch categories (with caching)
   const fetchCategories = useCallback(async () => {
     const cached = localStorage.getItem("jobCategories");
     if (cached) {
@@ -189,12 +182,9 @@ const TeamMembers = () => {
       const cats = data.results || data || [];
       setJobCategories(cats);
       localStorage.setItem("jobCategories", JSON.stringify(cats));
-    } catch (err) {
-      console.error("Failed to load categories:", err);
-    }
+    } catch (_) {}
   }, []);
 
-  // ✅ Fetch members (with elite handling)
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -210,7 +200,10 @@ const TeamMembers = () => {
         !isEliteMode && filterType === "occupation" ? selectedCategory : undefined,
       starts_with:
         !isEliteMode && filterType === "letter" ? selectedLetter : undefined,
-      sort: sortOrder === "asc" ? "name_asc" : "name_desc",
+
+      // FIXED HERE
+      ordering: sortOrder === "asc" ? "name" : "-name",
+
       elite: isEliteMode ? "true" : undefined,
     };
 
@@ -219,7 +212,6 @@ const TeamMembers = () => {
 
     try {
       const res = await fetch(url, { signal: abortRefs.current.members.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       const normalized = (data.results || data || []).map((m) => {
@@ -252,13 +244,14 @@ const TeamMembers = () => {
         : normalized;
 
       setMembers(filteredMembers);
+
       setTotalPages(
         Math.ceil(
           (isEliteMode ? filteredMembers.length : data.count || filteredMembers.length) / 8
         ) || 1
       );
-    } catch (err) {
-      if (err.name !== "AbortError") setError("Failed to fetch members.");
+    } catch (_) {
+      setError("Failed to fetch members.");
     } finally {
       setLoading(false);
     }
@@ -272,7 +265,6 @@ const TeamMembers = () => {
     isEliteMode,
   ]);
 
-  // ✅ Effects
   useEffect(() => {
     const timeout = setTimeout(() => fetchMembers(), 400);
     return () => clearTimeout(timeout);
@@ -282,7 +274,6 @@ const TeamMembers = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // ✅ Handlers
   const handleFilterChange = useCallback((type, value) => {
     setFilterType(type);
     setPage(1);
@@ -305,6 +296,7 @@ const TeamMembers = () => {
     setSelectedCategory("");
     setSelectedLetter("");
     setSearchQuery("");
+    setSearchInput(""); // reset input also
     setIsEliteMode(false);
     setPage(1);
   }, []);
@@ -313,7 +305,6 @@ const TeamMembers = () => {
     setFlippedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  // ✅ Loading/Error
   if (loading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -340,12 +331,9 @@ const TeamMembers = () => {
       </div>
     );
 
-  // ✅ Main Layout
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-0 pb-24">
-      {/* 🎥 Full-Stretch Background Video Header */}
       <section className="relative w-full min-h-[450px] md:min-h-[620px] flex flex-col justify-end items-center overflow-hidden mb-16">
-        {/* Background Video */}
         <video
           className="absolute inset-0 w-full h-full object-cover z-0"
           autoPlay
@@ -359,10 +347,8 @@ const TeamMembers = () => {
           />
         </video>
 
-        {/* Dark Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60 z-10"></div>
 
-        {/* Content */}
         <div className="relative z-20 w-full max-w-7xl mx-auto px-6 pt-32 md:pt-40 pb-28 text-center text-white">
           <h1 className="text-white font-medium leading-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl">
             Honouring Expatriate <br className="hidden sm:block" /> Excellence in Bahrain
@@ -372,9 +358,10 @@ const TeamMembers = () => {
             unity, and innovation across the Kingdom.
           </p>
 
-          {/* ✅ Filters Section (Updated) */}
+          {/* 🔥 FILTERS */}
           <div className="relative w-full mt-6 px-4">
             <div className="w-[90%] max-w-5xl mx-auto rounded-2xl bg-white/20 backdrop-blur-md border border-white/10 shadow-lg flex flex-wrap justify-center items-center gap-3 sm:gap-4 py-3 sm:py-4">
+              
               {/* All */}
               <button
                 onClick={() => {
@@ -436,17 +423,25 @@ const TeamMembers = () => {
                 ))}
               </select>
 
-              {/* Search */}
+              {/* 🔥 SEARCH INPUT */}
               <input
                 type="text"
                 placeholder="Search by name or occupation..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-[90%] sm:w-auto border border-white/40 rounded-lg px-4 py-2 bg-white/10 text-white placeholder-white/70 focus:ring-2 focus:ring-yellow-400 text-sm"
               />
+
+              {/* 🔥 SEARCH BUTTON */}
+              <button
+                onClick={() => {
+                  setSearchQuery(searchInput);
+                  setPage(1);
+                }}
+                className="w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-green-600 transition"
+              >
+                Search
+              </button>
 
               {/* Sort */}
               <button
@@ -456,7 +451,6 @@ const TeamMembers = () => {
                 Sort {sortOrder === "asc" ? "A–Z" : "Z–A"}
               </button>
 
-              {/* Clear */}
               <button
                 onClick={clearAllFilters}
                 className="w-[90%] sm:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-700"
@@ -468,7 +462,7 @@ const TeamMembers = () => {
         </div>
       </section>
 
-      {/* Members Grid */}
+      {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {members.length > 0 ? (
